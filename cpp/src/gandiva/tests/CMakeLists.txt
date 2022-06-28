@@ -34,7 +34,8 @@ add_gandiva_test(projector-test
                  projector_test.cc
                  test_util.cc
                  to_string_test.cc
-                 utf8_test.cc)
+                 utf8_test.cc
+                 secondary_cache_test)
 
 if(ARROW_BUILD_STATIC)
   add_gandiva_test(projector_test_static
