@@ -34,6 +34,7 @@ jobs:
           archery docker run \
             -e ARROW_JAVA_BUILD=OFF \
             -e ARROW_JAVA_TEST=OFF \
+            -e ARROW_USE_SCCACHE=OFF \
             java-jni-manylinux-2014
       - name: Compress into single artifact to keep directory structure
         run: tar -cvzf arrow-shared-libs-linux.tar.gz arrow/java-dist/
