@@ -34,7 +34,6 @@ jobs:
           archery docker run \
             -e ARROW_JAVA_BUILD=OFF \
             -e ARROW_JAVA_TEST=OFF \
-            -e ARROW_USE_SCCACHE=OFF \
             java-jni-manylinux-2014
       - name: Compress into single artifact to keep directory structure
         run: tar -cvzf arrow-shared-libs-linux.tar.gz arrow/java-dist/
@@ -104,6 +103,7 @@ jobs:
       - name: Build C++ libraries
         env:
         {{ macros.github_set_sccache_envvars()|indent(8) }}
+        ARROW_USE_SCCACHE: "OFF"
         run: |
           set -e
           # make brew Java available to CMake
