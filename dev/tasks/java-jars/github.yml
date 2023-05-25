@@ -102,8 +102,8 @@ jobs:
           brew bundle --file=arrow/java/Brewfile
       - name: Build C++ libraries
         env:
+          ARROW_USE_SCCACHE: "OFF"
         {{ macros.github_set_sccache_envvars()|indent(8) }}
-        ARROW_USE_SCCACHE: "OFF"
         run: |
           set -e
           # make brew Java available to CMake
