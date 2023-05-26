@@ -102,7 +102,6 @@ jobs:
           brew bundle --file=arrow/java/Brewfile
       - name: Build C++ libraries
         env:
-          ARROW_USE_SCCACHE: "OFF"
         {{ macros.github_set_sccache_envvars()|indent(8) }}
         run: |
           set -e
