@@ -36,6 +36,10 @@ jobs:
       - name: Use the token
         env:
           CROSSBOW_GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
+        run: |
+          set -e
+          echo ""
+          echo "Setting Crossbow Github Token ${CROSSBOW_GITHUB_TOKEN}" 
       - name: Install Conda
         run: |
           set -e
