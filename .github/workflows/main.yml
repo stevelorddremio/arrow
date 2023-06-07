@@ -74,7 +74,7 @@ jobs:
           toolz
       - name: Run Crossbow script
         env:
-          CROSSBOW_GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}ZZZ
+          CROSSBOW_GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
           set -e
           pushd ..
