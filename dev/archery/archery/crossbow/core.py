@@ -307,7 +307,7 @@ class Repo:
                                .format(self._updated_refs))
         else:
             self.updated_refs = []
-        print ("LR finished push")
+        print ("LR finished push " + str(self.updated_refs))
 
     @property
     def head(self):
