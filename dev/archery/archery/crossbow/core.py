@@ -415,6 +415,8 @@ class Repo:
         author = committer = self.signature
         commit_id = self.repo.create_commit(reference_name, author, committer,
                                             message, tree_id, parents)
+        print("LR Commit id " + commit_id)
+        print("LR commit " + self.repo[commit_id])
         return self.repo[commit_id]
 
     def create_branch(self, branch_name, files, parents=None, message='',
