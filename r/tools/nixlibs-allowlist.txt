@@ -1,4 +1,0 @@
-ubuntu
-centos
-redhat
-rhel
