@@ -289,6 +289,7 @@ class Repo:
                     raise e
 
     def push(self, refs=None, github_token=None):
+        print ("LR push")
         github_token = github_token or self.github_token
         if github_token is None:
             raise RuntimeError(
@@ -306,6 +307,7 @@ class Repo:
                                .format(self._updated_refs))
         else:
             self.updated_refs = []
+        print ("LR finished push")
 
     @property
     def head(self):
@@ -428,7 +430,7 @@ class Repo:
         # create branch pointing to the previously created commit
         branch = self.repo.create_branch(branch_name, commit)
 
-        print("LR created branch " + str(branch))
+        print("LR created branch " + str(branch.branch_name))
         # append to the pushable references
         self._updated_refs.append('refs/heads/{}'.format(branch_name))
 
