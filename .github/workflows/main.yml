@@ -73,6 +73,8 @@ jobs:
           setuptools_scm \
           toolz
       - name: Run Crossbow script
+        env:
+          CROSSBOW_GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
           set -e
           pushd ..
