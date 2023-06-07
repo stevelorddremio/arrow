@@ -15,9 +15,8 @@
 name: Trigger Jar Build Crossbow
 
 on: workflow_dispatch
-
+       
 env:
-  CROSSBOW_GITHUB_TOKEN: ${{ secrets.CROSSBOW_GITHUB_TOKEN }}
   ARCHERY_DEFAULT_BRANCH: ${{ github.ref_name }}
 jobs:
   trigger-crossbow:
@@ -28,6 +27,15 @@ jobs:
         with:
           ref: ${{ github.ref_name }}
           fetch-depth: 0
+      - name: Generate a token
+        id: generate_token
+        uses: tibdex/github-app-token@b62528385c34dbc9f38e5f4225ac829252d1ea92
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          private_key: ${{ secrets.APP_SECRET }}
+      - name: Use the token
+        env:
+          CROSSBOW_GITHUB_TOKEN: ${{ steps.generate_token.outputs.token }}
       - name: Install Conda
         run: |
           set -e
