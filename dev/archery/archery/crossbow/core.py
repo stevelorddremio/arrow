@@ -421,12 +421,14 @@ class Repo:
 
     def create_branch(self, branch_name, files, parents=None, message='',
                       signature=None):
+        print ("LR create_branch")
         # create commit with the passed tree
         commit = self.create_commit(files, parents=parents, message=message)
 
         # create branch pointing to the previously created commit
         branch = self.repo.create_branch(branch_name, commit)
 
+        print("LR created branch " + str(branch))
         # append to the pushable references
         self._updated_refs.append('refs/heads/{}'.format(branch_name))
 
