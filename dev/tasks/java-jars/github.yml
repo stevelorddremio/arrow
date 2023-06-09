@@ -61,8 +61,7 @@ jobs:
     env:
       MACOSX_DEPLOYMENT_TARGET: "10.13"
     steps:
-      #Restore once the sccache vars are configured. {{ macros.github_checkout_arrow()|indent }}
-      ARROW_USE_CCACHE: "ON"
+      {{ macros.github_checkout_arrow()|indent }}
       - name: Set up Python
         if: |
           !contains(matrix.platform.runs_on, 'self-hosted')
@@ -103,7 +102,8 @@ jobs:
           brew bundle --file=arrow/java/Brewfile
       - name: Build C++ libraries
         env:
-        {{ macros.github_set_sccache_envvars()|indent(8) }}
+        #Restore once the sccache vars are configured. {{ macros.github_set_sccache_envvars()|indent(8) }}
+        ARROW_USE_CCACHE: "ON"
         run: |
           set -e
           # make brew Java available to CMake
