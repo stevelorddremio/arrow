@@ -102,8 +102,7 @@ jobs:
           brew bundle --file=arrow/java/Brewfile
       - name: Build C++ libraries
         env:
-        #Restore once the sccache vars are configured.  macros github_set_sccache_envvars()
-        ARROW_USE_CCACHE: "ON"
+          ARROW_USE_CCACHE: "ON"
         run: |
           set -e
           # make brew Java available to CMake
