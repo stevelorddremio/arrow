@@ -61,7 +61,8 @@ jobs:
     env:
       MACOSX_DEPLOYMENT_TARGET: "10.13"
     steps:
-      {{ macros.github_checkout_arrow()|indent }}
+      #Restore once the sccache vars are configured. {{ macros.github_checkout_arrow()|indent }}
+      ARROW_USE_CCACHE: "ON"
       - name: Set up Python
         if: |
           !contains(matrix.platform.runs_on, 'self-hosted')
