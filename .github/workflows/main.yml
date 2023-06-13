@@ -18,6 +18,7 @@ on: workflow_dispatch
        
 env:
   ARCHERY_DEFAULT_BRANCH: ${{ github.ref_name }}
+  CROSSBOW_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 jobs:
   trigger-crossbow:
     name: Trigger Crossbow
