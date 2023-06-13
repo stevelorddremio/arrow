@@ -24,8 +24,6 @@ jobs:
   build-cpp-ubuntu:
     name: Build C++ libraries Ubuntu
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       {{ macros.github_checkout_arrow()|indent }}
       {{ macros.github_install_archery()|indent }}
@@ -160,6 +158,8 @@ jobs:
   package-jars:
     name: Build jar files
     runs-on: macos-latest
+    permissions:
+      contents: write
     needs:
       - build-cpp-ubuntu
       - build-cpp-macos
