@@ -35,7 +35,7 @@ jobs:
           private_key: ${{ secrets.APP_SECRET }}
       - name: Use the token
         env:
-          CROSSBOW_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN  }}
+          CROSSBOW_GITHUB_TOKEN: ${{ steps.generate_token.outputs.token  }}
         run: |
           set -e
           echo ""
@@ -74,7 +74,7 @@ jobs:
           toolz
       - name: Run Crossbow script
         env:
-          CROSSBOW_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN  }}
+          CROSSBOW_GITHUB_TOKEN: ${{ steps.generate_token.outputs.token  }}
         run: |
           set -e
           pushd ..
