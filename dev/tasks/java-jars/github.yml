@@ -24,6 +24,8 @@ jobs:
   build-cpp-ubuntu:
     name: Build C++ libraries Ubuntu
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       {{ macros.github_checkout_arrow()|indent }}
       {{ macros.github_install_archery()|indent }}
