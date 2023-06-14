@@ -16,8 +16,6 @@ name: Trigger Jar Build
 
 on: workflow_dispatch
        
-env:
-  ARCHERY_DEFAULT_BRANCH: ${{ github.ref_name }}
 jobs:
   trigger-crossbow:
     name: Trigger Crossbow
