@@ -86,4 +86,4 @@ jobs:
           cd arrow
           echo pwd
           pwd
-          --archery crossbow --queue-path $GITHUB_WORKSPACE --queue-remote https://github.com/$GITHUB_REPOSITORY submit java-jars --job-prefix nightly 
+          archery crossbow --queue-path /home/runner/work/arrow/crossbow-queue --queue-remote https://github.com/lriggs/arrow-build submit java-jars --job-prefix nightly 
