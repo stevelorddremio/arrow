@@ -85,9 +85,12 @@ jobs:
           git clone https://github.com/lriggs/arrow-build crossbow-queue
           echo ls
           ls
+          ls /home/runner/work/arrow/crossbow-queue
           echo GITHUB_WORKSPACE:$GITHUB_WORKSPACE
           echo GITHUB_REPOSITORY: $GITHUB_REPOSITORY
           cd arrow
           echo pwd
           pwd
-          echo archery crossbow --queue-path /home/runner/work/arrow/crossbow-queue --queue-remote https://github.com/lriggs/arrow-build submit java-jars --job-prefix nightly 
+          echo archery crossbow --queue-path /home/runner/work/arrow/crossbow-queue --queue-remote https://github.com/lriggs/arrow-build submit java-jars --job-prefix nightly
+          archery crossbow --queue-path /home/runner/work/arrow/crossbow-queue --queue-remote https://github.com/lriggs/arrow-build submit java-jars --job-prefix nightly 
+
