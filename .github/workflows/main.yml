@@ -80,9 +80,10 @@ jobs:
           pushd ..
           source /home/runner/miniconda3/bin/activate root
           pip install -e arrow/dev/archery[crossbow] 
+          git clone https://github.com/lriggs/arrow-build crossbow-queue
           echo GITHUB_WORKSPACE:$GITHUB_WORKSPACE
           echo GITHUB_REPOSITORY: $GITHUB_REPOSITORY
           cd arrow
           echo pwd
           pwd
-          archery crossbow --queue-path $GITHUB_WORKSPACE --queue-remote https://github.com/$GITHUB_REPOSITORY submit java-jars --job-prefix nightly 
+          --archery crossbow --queue-path $GITHUB_WORKSPACE --queue-remote https://github.com/$GITHUB_REPOSITORY submit java-jars --job-prefix nightly 
