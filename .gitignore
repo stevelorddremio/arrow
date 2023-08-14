@@ -58,6 +58,11 @@ python/doc/
 # Egg metadata
 *.egg-info
 
+# Generated C++
+CMakeFiles
+cpp-jni
+java-jni
+
 .vscode
 .idea/
 .pytest_cache/
