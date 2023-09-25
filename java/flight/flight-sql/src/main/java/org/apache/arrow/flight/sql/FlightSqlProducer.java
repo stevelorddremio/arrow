@@ -53,8 +53,6 @@ import java.util.List;
 import org.apache.arrow.flight.Action;
 import org.apache.arrow.flight.ActionType;
 import org.apache.arrow.flight.CallStatus;
-import org.apache.arrow.flight.CancelFlightInfoRequest;
-import org.apache.arrow.flight.CancelStatus;
 import org.apache.arrow.flight.CloseSessionRequest;
 import org.apache.arrow.flight.CloseSessionResult;
 import org.apache.arrow.flight.FlightConstants;
@@ -361,30 +359,6 @@ public interface FlightSqlProducer extends FlightProducer, AutoCloseable {
       ActionEndTransactionRequest request =
           FlightSqlUtils.unpackAndParseOrThrow(action.getBody(), ActionEndTransactionRequest.class);
       endTransaction(request, context, new NoResultListener(listener));
-    } else if (actionType.equals(FlightConstants.CANCEL_FLIGHT_INFO.getType())) {
-      final CancelFlightInfoRequest request;
-      try {
-        request = CancelFlightInfoRequest.deserialize(ByteBuffer.wrap(action.getBody()));
-      } catch (IOException | URISyntaxException e) {
-        listener.onError(CallStatus.INTERNAL
-            .withDescription("Could not unpack FlightInfo: " + e)
-            .withCause(e)
-            .toRuntimeException());
-        return;
-      }
-      cancelFlightInfo(request, context, new CancelStatusListener(listener));
-    } else if (actionType.equals(FlightConstants.RENEW_FLIGHT_ENDPOINT.getType())) {
-      final RenewFlightEndpointRequest request;
-      try {
-        request = RenewFlightEndpointRequest.deserialize(ByteBuffer.wrap(action.getBody()));
-      } catch (IOException | URISyntaxException e) {
-        listener.onError(CallStatus.INTERNAL
-            .withDescription("Could not unpack FlightInfo: " + e)
-            .withCause(e)
-            .toRuntimeException());
-        return;
-      }
-      renewFlightEndpoint(request, context, new FlightEndpointListener(listener));
     } else if (actionType.equals(FlightConstants.SET_SESSION_OPTIONS.getType())) {
       final SetSessionOptionsRequest request;
       try {

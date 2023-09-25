@@ -489,65 +489,6 @@ public class FlightClient implements AutoCloseable {
     }
   }
 
-  /**
-   * Cancel execution of a distributed query.
-   *
-   * @param request The query to cancel.
-   * @param options Call options.
-   * @return The server response.
-   */
-  public CancelFlightInfoResult cancelFlightInfo(CancelFlightInfoRequest request, CallOption... options) {
-    Action action = new Action(FlightConstants.CANCEL_FLIGHT_INFO.getType(), request.serialize().array());
-    Iterator<Result> results = doAction(action, options);
-    if (!results.hasNext()) {
-      throw CallStatus.INTERNAL
-          .withDescription("Server did not return a response")
-          .toRuntimeException();
-    }
-
-    CancelFlightInfoResult result;
-    try {
-      result = CancelFlightInfoResult.deserialize(ByteBuffer.wrap(results.next().getBody()));
-    } catch (IOException e) {
-      throw CallStatus.INTERNAL
-          .withDescription("Failed to parse server response: " + e)
-          .withCause(e)
-          .toRuntimeException();
-    }
-    results.forEachRemaining((ignored) -> {
-    });
-    return result;
-  }
-
-  /**
-   * Request the server to extend the lifetime of a query result set.
-   *
-   * @param request The result set partition.
-   * @param options Call options.
-   * @return The new endpoint with an updated expiration time.
-   */
-  public FlightEndpoint renewFlightEndpoint(RenewFlightEndpointRequest request, CallOption... options) {
-    Action action = new Action(FlightConstants.RENEW_FLIGHT_ENDPOINT.getType(), request.serialize().array());
-    Iterator<Result> results = doAction(action, options);
-    if (!results.hasNext()) {
-      throw CallStatus.INTERNAL
-          .withDescription("Server did not return a response")
-          .toRuntimeException();
-    }
-
-    FlightEndpoint result;
-    try {
-      result = FlightEndpoint.deserialize(ByteBuffer.wrap(results.next().getBody()));
-    } catch (IOException | URISyntaxException e) {
-      throw CallStatus.INTERNAL
-          .withDescription("Failed to parse server response: " + e)
-          .withCause(e)
-          .toRuntimeException();
-    }
-    results.forEachRemaining((ignored) -> {
-    });
-    return result;
-  }
 
   /**
    * Request the server to extend the lifetime of a query result set.

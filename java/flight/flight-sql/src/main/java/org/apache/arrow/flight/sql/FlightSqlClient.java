@@ -59,8 +59,6 @@ import java.util.stream.Collectors;
 import org.apache.arrow.flight.Action;
 import org.apache.arrow.flight.CallOption;
 import org.apache.arrow.flight.CallStatus;
-import org.apache.arrow.flight.CancelFlightInfoRequest;
-import org.apache.arrow.flight.CancelFlightInfoResult;
 import org.apache.arrow.flight.CloseSessionRequest;
 import org.apache.arrow.flight.CloseSessionResult;
 import org.apache.arrow.flight.FlightClient;
@@ -894,17 +892,6 @@ public class FlightSqlClient implements AutoCloseable {
       default:
         throw CallStatus.INTERNAL.withDescription("Unknown result: " + result.getResult()).toRuntimeException();
     }
-  }
-
-  /**
-   * Request the server to extend the lifetime of a query result set.
-   *
-   * @param request The result set partition.
-   * @param options Call options.
-   * @return The new endpoint with an updated expiration time.
-   */
-  public FlightEndpoint renewFlightEndpoint(RenewFlightEndpointRequest request, CallOption... options) {
-    return client.renewFlightEndpoint(request, options);
   }
 
   public SetSessionOptionsResult setSessionOptions(SetSessionOptionsRequest request, CallOption... options) {
