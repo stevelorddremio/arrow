@@ -729,6 +729,7 @@ public class ListVector extends BaseRepeatedValueVector implements PromotableVec
   }
 
   protected void invalidateReader() {
+    fieldReader = null;
     reader = null;
   }
 
