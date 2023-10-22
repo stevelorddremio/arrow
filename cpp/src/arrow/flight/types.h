@@ -155,6 +155,15 @@ struct ARROW_FLIGHT_EXPORT ActionType {
 
   /// \brief Deserialize this message from its wire-format representation.
   static arrow::Result<ActionType> Deserialize(std::string_view serialized);
+<<<<<<< HEAD
+=======
+
+  static const ActionType kCancelFlightInfo;
+  static const ActionType kRenewFlightEndpoint;
+  static const ActionType kSetSessionOptions;
+  static const ActionType kGetSessionOptions;
+  static const ActionType kCloseSession;
+>>>>>>> 5df37ac44 (WIP: High-level design review ONLY)
 };
 
 /// \brief Opaque selection criteria for ListFlights RPC
@@ -594,6 +603,266 @@ class ARROW_FLIGHT_EXPORT FlightInfo {
   mutable bool reconstructed_schema_;
 };
 
+<<<<<<< HEAD
+=======
+/// \brief The information to process a long-running query.
+class ARROW_FLIGHT_EXPORT PollInfo {
+ public:
+  /// The currently available results so far.
+  std::unique_ptr<FlightInfo> info = NULLPTR;
+  /// The descriptor the client should use on the next try. If unset,
+  /// the query is complete.
+  std::optional<FlightDescriptor> descriptor = std::nullopt;
+  /// Query progress. Must be in [0.0, 1.0] but need not be
+  /// monotonic or nondecreasing. If unknown, do not set.
+  std::optional<double> progress = std::nullopt;
+  /// Expiration time for this request. After this passes, the server
+  /// might not accept the poll descriptor anymore (and the query may
+  /// be cancelled). This may be updated on a call to PollFlightInfo.
+  std::optional<Timestamp> expiration_time = std::nullopt;
+
+  PollInfo()
+      : info(NULLPTR),
+        descriptor(std::nullopt),
+        progress(std::nullopt),
+        expiration_time(std::nullopt) {}
+
+  explicit PollInfo(std::unique_ptr<FlightInfo> info,
+                    std::optional<FlightDescriptor> descriptor,
+                    std::optional<double> progress,
+                    std::optional<Timestamp> expiration_time)
+      : info(std::move(info)),
+        descriptor(std::move(descriptor)),
+        progress(progress),
+        expiration_time(expiration_time) {}
+
+  explicit PollInfo(const PollInfo& other)
+      : info(other.info ? std::make_unique<FlightInfo>(*other.info) : NULLPTR),
+        descriptor(other.descriptor),
+        progress(other.progress),
+        expiration_time(other.expiration_time) {}
+
+  /// \brief Get the wire-format representation of this type.
+  ///
+  /// Useful when interoperating with non-Flight systems (e.g. REST
+  /// services) that may want to return Flight types.
+  arrow::Result<std::string> SerializeToString() const;
+
+  /// \brief Parse the wire-format representation of this type.
+  ///
+  /// Useful when interoperating with non-Flight systems (e.g. REST
+  /// services) that may want to return Flight types.
+  static arrow::Result<std::unique_ptr<PollInfo>> Deserialize(
+      std::string_view serialized);
+
+  std::string ToString() const;
+
+  /// Compare two PollInfo for equality. This will compare the
+  /// serialized schema representations, NOT the logical equality of
+  /// the schemas.
+  bool Equals(const PollInfo& other) const;
+
+  friend bool operator==(const PollInfo& left, const PollInfo& right) {
+    return left.Equals(right);
+  }
+  friend bool operator!=(const PollInfo& left, const PollInfo& right) {
+    return !(left == right);
+  }
+};
+
+/// \brief The request of the CancelFlightInfoRequest action.
+struct ARROW_FLIGHT_EXPORT CancelFlightInfoRequest {
+  std::unique_ptr<FlightInfo> info;
+
+  std::string ToString() const;
+  bool Equals(const CancelFlightInfoRequest& other) const;
+
+  friend bool operator==(const CancelFlightInfoRequest& left,
+                         const CancelFlightInfoRequest& right) {
+    return left.Equals(right);
+  }
+  friend bool operator!=(const CancelFlightInfoRequest& left,
+                         const CancelFlightInfoRequest& right) {
+    return !(left == right);
+  }
+
+  /// \brief Serialize this message to its wire-format representation.
+  arrow::Result<std::string> SerializeToString() const;
+
+  /// \brief Deserialize this message from its wire-format representation.
+  static arrow::Result<CancelFlightInfoRequest> Deserialize(std::string_view serialized);
+};
+
+
+
+
+/// \brief Variant supporting all possible value types for {Set,Get}SessionOptions
+using SessionOptionValue =
+    std::variant<std::string, bool, int32_t, int64_t, float, double, std::vector<std::string>>;
+
+/// \brief The result of setting a session option.
+enum class SetSessionOptionResult : int8_t {
+  kUnspecified,
+  kOk,
+  kOkMapped,  // PHOXME add remapped key/value status(es) to Proto too
+  kInvalidResult,
+  kError
+};
+
+/// \brief The result of closing a session.
+enum class CloseSessionResult : int8_t {
+  kUnspecified,
+  kClosed,
+  kClosing,
+  kNotClosable
+};
+
+/// \brief A request to set a set of session options by key/value.
+struct ARROW_FLIGHT_SQL_EXPORT SetSessionOptionsRequest {
+  std::map<std::string, SessionOptionValue> session_options;
+
+  std::string ToString() const;
+  bool Equals(const SetSessionOptionsRequest& other) const;
+
+  friend bool operator==(const SetSessionOptionsRequest& left,
+                         const SetSessionOptionsRequest& right) {
+    return left.Equals(right);
+  }
+  friend bool operator!=(const SetSessionOptionsRequest& left,
+                         const SetSessionOptionsRequest& right)){
+    return !(left == right);
+  }
+
+  /// \brief Serialize this message to its wire-format representation.
+  arrow::Result<std::string> SerializeToString() const;
+
+  /// \brief Deserialize this message from its wire-format representation.
+  static arrow::Result<SetSessionOptionsRequest>
+  Deserialize(std::string_view serialized);
+};
+
+/// \brief The result(s) of setting session option(s).
+struct ARROW_FLIGHT_SQL_EXPORT SetSessionOptionsResult {
+  std::map<std::string, SetSessionOptionResult> results;
+
+  std::string ToString() const;
+  bool Equals(const SetSessionOptionsResult& other) const;
+
+  friend bool operator==(const SetSessionOptionsResult& left,
+                         const SetSessionOptionsResult& right) {
+    return left.Equals(right);
+  }
+  friend bool operator!=(const SetSessionOptionsResult& left,
+                         const SetSessionOptionsResult& right)){
+    return !(left == right);
+  }
+
+  /// \brief Serialize this message to its wire-format representation.
+  arrow::Result<std::string> SerializeToString() const;
+
+  /// \brief Deserialize this message from its wire-format representation.
+  static arrow::Result<SetSessionOptionsResult>
+  Deserialize(std::string_view serialized);
+};
+
+/// \brief A request to get current session options.
+struct ARROW_FLIGHT_SQL_EXPORT GetSessionOptionsRequest {
+  std::string ToString() const;
+  bool Equals(const GetSessionOptionsRequest& other) const;
+
+  friend bool operator==(const GetSessionOptionsRequest& left,
+                         const GetSessionOptionsRequest& right) {
+    return left.Equals(right);
+  }
+  friend bool operator!=(const GetSessionOptionsRequest& left,
+                         const GetSessionOptionsRequest& right)){
+    return !(left == right);
+  }
+
+  /// \brief Serialize this message to its wire-format representation.
+  arrow::Result<std::string> SerializeToString() const;
+
+  /// \brief Deserialize this message from its wire-format representation.
+  static arrow::Result<GetSessionOptionsRequest>
+  Deserialize(std::string_view serialized);
+};
+
+/// \brief The current session options.
+struct ARROW_FLIGHT_SQL_EXPORT GetSessionOptionsResult {
+  std::map<std::string, SessionOptionValue> session_options;
+
+  std::string ToString() const;
+  bool Equals(const GetSessionOptionsResult& other) const;
+
+  friend bool operator==(const GetSessionOptionsResult& left,
+                         const GetSessionOptionsResult& right) {
+    return left.Equals(right);
+  }
+  friend bool operator!=(const GetSessionOptionsResult& left,
+                         const GetSessionOptionsResult& right)){
+    return !(left == right);
+  }
+
+  /// \brief Serialize this message to its wire-format representation.
+  arrow::Result<std::string> SerializeToString() const;
+
+  /// \brief Deserialize this message from its wire-format representation.
+  static arrow::Result<GetSessionOptionsResult>
+  Deserialize(std::string_view serialized);
+};
+
+// PHOXME struct CloseSessionResult (already below??)
+
+/// \brief A request to close the open client session.
+struct ARROW_FLIGHT_SQL_EXPORT CloseSessionRequest {  std::string ToString() const;
+  bool Equals(const CloseSessionRequest& other) const;
+
+  friend bool operator==(const CloseSessionRequest& left,
+                         const CloseSessionRequest& right) {
+    return left.Equals(right);
+  }
+  friend bool operator!=(const CloseSessionRequest& left,
+                         const CloseSessionRequest& right)){
+    return !(left == right);
+  }
+
+  /// \brief Serialize this message to its wire-format representation.
+  arrow::Result<std::string> SerializeToString() const;
+
+  /// \brief Deserialize this message from its wire-format representation.
+  static arrow::Result<CloseSessionRequest>
+  Deserialize(std::string_view serialized);
+};
+
+/// \brief The result of attempting to close the client session.
+struct ARROW_FLIGHT_SQL_EXPORT CloseSessionResult {
+  CloseSessionResult result;
+
+  std::string ToString() const;
+  bool Equals(const CloseSessionResult& other) const;
+
+  friend bool operator==(const CloseSessionResult& left,
+                         const CloseSessionResult& right) {
+    return left.Equals(right);
+  }
+  friend bool operator!=(const CloseSessionResult& left,
+                         const CloseSessionResult& right)){
+    return !(left == right);
+  }
+
+  /// \brief Serialize this message to its wire-format representation.
+  arrow::Result<std::string> SerializeToString() const;
+
+  /// \brief Deserialize this message from its wire-format representation.
+  static arrow::Result<CloseSessionResult>
+  Deserialize(std::string_view serialized);
+}
+
+
+
+
+
+>>>>>>> 5df37ac44 (WIP: High-level design review ONLY)
 /// \brief An iterator to FlightInfo instances returned by ListFlights.
 class ARROW_FLIGHT_EXPORT FlightListing {
  public:
