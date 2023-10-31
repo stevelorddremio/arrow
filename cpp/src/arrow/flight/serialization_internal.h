@@ -58,6 +58,18 @@ Status FromProto(const pb::FlightEndpoint& pb_endpoint, FlightEndpoint* endpoint
 Status FromProto(const pb::FlightInfo& pb_info, FlightInfo::Data* info);
 Status FromProto(const pb::SchemaResult& pb_result, std::string* result);
 Status FromProto(const pb::BasicAuth& pb_basic_auth, BasicAuth* info);
+Status FromProto(const pb::SetSessionOptionsRequest& pb_request,
+                 SetSessionOptionsRequest* request);
+Status FromProto(const pb::SetSessionOptionsResult& pb_result,
+                 SetSessionOptionsResult* result);
+Status FromProto(const pb::GetSessionOptionsRequest& pb_request,
+                 GetSessionOptionsRequest* request);
+Status FromProto(const pb::GetSessionOptionsResult& pb_result,
+                 GetSessionOptionsResult* result);
+Status FromProto(const pb::CloseSessionRequest& pb_request,
+                 CloseSessionRequest* request);
+Status FromProto(const pb::CloseSessionResult& pb_result,
+                 CloseSessionResult* result);
 
 Status ToProto(const FlightDescriptor& descr, pb::FlightDescriptor* pb_descr);
 Status ToProto(const FlightEndpoint& endpoint, pb::FlightEndpoint* pb_endpoint);
@@ -69,6 +81,18 @@ Status ToProto(const Criteria& criteria, pb::Criteria* pb_criteria);
 Status ToProto(const SchemaResult& result, pb::SchemaResult* pb_result);
 Status ToProto(const Ticket& ticket, pb::Ticket* pb_ticket);
 Status ToProto(const BasicAuth& basic_auth, pb::BasicAuth* pb_basic_auth);
+Status ToProto(const SetSessionOptionsRequest& request,
+               pb::SetSessionOptionsRequest* pb_request);
+Status ToProto(const SetSessionOptionsResult& result,
+               pb::SetSessionOptionsResult* pb_result);
+Status ToProto(const GetSessionOptionsRequest& request,
+               pb::GetSessionOptionsRequest* pb_request);
+Status ToProto(const GetSessionOptionsResult& result,
+               pb::GetSessionOptionsResult* pb_result);
+Status ToProto(const CloseSessionRequest& request,
+               pb::CloseSessionRequest* pb_request);
+Status ToProto(const CloseSessionResult& result,
+               pb::CloseSessionResult* pb_result);
 
 Status ToPayload(const FlightDescriptor& descr, std::shared_ptr<Buffer>* out);
 
