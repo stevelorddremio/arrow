@@ -472,10 +472,9 @@ arrow::Result<CancelFlightInfoRequest> CancelFlightInfoRequest::Deserialize(
 
 
 // PHOXME impl...
-// PHOXME extend SessionOptionMapToString to support result code enums too
+// Helper for stringifying maps containing various types
 template <typename T>
-static std::string SessionOptionMapToString(std::map<std::string, T>) {
-  // PHOXME replace with operator<<
+ostream& operator<<(std::map<std::string, T>) {
   std::stringstream ss;
 
   ss << '{';
@@ -511,7 +510,7 @@ static bool CompareSessionOptionMaps(
 
 // SetSessionOptionsRequest
 std::string SetSessionOptionsRequest::ToString() const {
-  std::stringstream ss;32     
+  std::stringstream ss;
 
   ss << "<SetSessionOptionsRequest session_options="
      << SessionOptionMapToString(session_options); << '>';
@@ -552,7 +551,11 @@ SetSessionOptionsRequest::Deserialize(std::string_view serialized) {
 
 // SetSessionOptionsResult
 std::string SetSessionOptionsResult::ToString() const {
-  // TODO 1/
+  std::stringstream ss;
+
+  ss << "<SetSessionOptionsResult results=" << results << '>';
+
+  return ss.str();
 }
 bool SetSessionOptionsResult::Equals(const SetSessionOptionsResult& other) const {
   if (results != other.results) {
@@ -625,7 +628,11 @@ GetSessionOptionsRequest::Deserialize(std::string_view serialized) {
 
 // GetSessionOptionsResult
 std::string GetSessionOptionsResult::ToString() const {
-  // TODO 2/ (another string method?)
+  std::stringstream ss;
+  
+  ss << "<GetSessionOptionsResult session_options=" << session_options << '>';
+
+  return ss.str();
 }
 bool GetSessionOptionsResult::Equals(const GetSessionOptionsResult& other) const {
   return CompareSessionOptionMaps(session_options, other.session_options);
@@ -697,7 +704,11 @@ CloseSessionRequest::Deserialize(std::string_view serialized) {
 
 
 std::string CloseSessionResult::ToString() const {
-  // TODO 3/
+  std::stringstream ss;
+
+  ss << "<CloseSessionResult result=" << result << '>';
+
+  return ss.str();
 }
 bool CloseSessionResult::Equals(const CloseSessionResult& other) const {
   if (result != other.result)    {
