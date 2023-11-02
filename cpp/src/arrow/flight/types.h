@@ -756,6 +756,10 @@ struct ARROW_FLIGHT_EXPORT CancelFlightInfoRequest {
 /// \brief Variant supporting all possible value types for {Set,Get}SessionOptions
 using SessionOptionValue =
     std::variant<std::string, bool, int32_t, int64_t, float, double, std::vector<std::string>>;
+std::ostream& operator<<(std::ostream& os, const SessionOptionValue& v) {
+  std::visit([&](const auto& x) { os << x; }, v);
+  return os;
+}
 
 /// \brief The result of setting a session option.
 enum class SetSessionOptionStatus : int8_t {
@@ -777,7 +781,7 @@ std::ostream& operator<<(std::ostream& os, const SetSessionOptionStatus& r) {
     case SetSessionOptionStatus::kOkMapped:
       os << "OkMapped";
       break;
-    case SetSessionOptionStatus::kInvalidName:
+    case SetSessionOptionStatus::kInvalidKey:
       os << "InvalidName";
       break;
     case SetSessionOptionStatus::kInvalidValue:
@@ -787,6 +791,7 @@ std::ostream& operator<<(std::ostream& os, const SetSessionOptionStatus& r) {
       os << "Error";
       break;
   }
+  return os;
 }
 
 /// \brief The result of closing a session.
@@ -815,7 +820,7 @@ std::ostream& operator<<(std::ostream& os, const CloseSessionStatus& r) {
 }
 
 /// \brief A request to set a set of session options by key/value.
-struct ARROW_FLIGHT_SQL_EXPORT SetSessionOptionsRequest {
+struct ARROW_FLIGHT_EXPORT SetSessionOptionsRequest {
   std::map<std::string, SessionOptionValue> session_options;
 
   std::string ToString() const;
@@ -826,7 +831,7 @@ struct ARROW_FLIGHT_SQL_EXPORT SetSessionOptionsRequest {
     return left.Equals(right);
   }
   friend bool operator!=(const SetSessionOptionsRequest& left,
-                         const SetSessionOptionsRequest& right)){
+                         const SetSessionOptionsRequest& right) {
     return !(left == right);
   }
 
@@ -839,7 +844,7 @@ struct ARROW_FLIGHT_SQL_EXPORT SetSessionOptionsRequest {
 };
 
 /// \brief The result(s) of setting session option(s).
-struct ARROW_FLIGHT_SQL_EXPORT SetSessionOptionsResult {
+struct ARROW_FLIGHT_EXPORT SetSessionOptionsResult {
   std::map<std::string, SetSessionOptionStatus> statuses;
 
   std::string ToString() const;
@@ -850,7 +855,7 @@ struct ARROW_FLIGHT_SQL_EXPORT SetSessionOptionsResult {
     return left.Equals(right);
   }
   friend bool operator!=(const SetSessionOptionsResult& left,
-                         const SetSessionOptionsResult& right)){
+                         const SetSessionOptionsResult& right) {
     return !(left == right);
   }
 
@@ -863,7 +868,7 @@ struct ARROW_FLIGHT_SQL_EXPORT SetSessionOptionsResult {
 };
 
 /// \brief A request to get current session options.
-struct ARROW_FLIGHT_SQL_EXPORT GetSessionOptionsRequest {
+struct ARROW_FLIGHT_EXPORT GetSessionOptionsRequest {
   std::string ToString() const;
   bool Equals(const GetSessionOptionsRequest& other) const;
 
@@ -872,7 +877,7 @@ struct ARROW_FLIGHT_SQL_EXPORT GetSessionOptionsRequest {
     return left.Equals(right);
   }
   friend bool operator!=(const GetSessionOptionsRequest& left,
-                         const GetSessionOptionsRequest& right)){
+                         const GetSessionOptionsRequest& right) {
     return !(left == right);
   }
 
@@ -885,7 +890,7 @@ struct ARROW_FLIGHT_SQL_EXPORT GetSessionOptionsRequest {
 };
 
 /// \brief The current session options.
-struct ARROW_FLIGHT_SQL_EXPORT GetSessionOptionsResult {
+struct ARROW_FLIGHT_EXPORT GetSessionOptionsResult {
   std::map<std::string, SessionOptionValue> session_options;
 
   std::string ToString() const;
@@ -896,7 +901,7 @@ struct ARROW_FLIGHT_SQL_EXPORT GetSessionOptionsResult {
     return left.Equals(right);
   }
   friend bool operator!=(const GetSessionOptionsResult& left,
-                         const GetSessionOptionsResult& right)){
+                         const GetSessionOptionsResult& right) {
     return !(left == right);
   }
 
@@ -909,7 +914,7 @@ struct ARROW_FLIGHT_SQL_EXPORT GetSessionOptionsResult {
 };
 
 /// \brief A request to close the open client session.
-struct ARROW_FLIGHT_SQL_EXPORT CloseSessionRequest {  std::string ToString() const;
+struct ARROW_FLIGHT_EXPORT CloseSessionRequest {  std::string ToString() const;
   bool Equals(const CloseSessionRequest& other) const;
 
   friend bool operator==(const CloseSessionRequest& left,
@@ -917,7 +922,7 @@ struct ARROW_FLIGHT_SQL_EXPORT CloseSessionRequest {  std::string ToString() con
     return left.Equals(right);
   }
   friend bool operator!=(const CloseSessionRequest& left,
-                         const CloseSessionRequest& right)){
+                         const CloseSessionRequest& right) {
     return !(left == right);
   }
 
@@ -930,7 +935,7 @@ struct ARROW_FLIGHT_SQL_EXPORT CloseSessionRequest {  std::string ToString() con
 };
 
 /// \brief The result of attempting to close the client session.
-struct ARROW_FLIGHT_SQL_EXPORT CloseSessionResult {
+struct ARROW_FLIGHT_EXPORT CloseSessionResult {
   CloseSessionStatus status;
 
   std::string ToString() const;
@@ -941,7 +946,7 @@ struct ARROW_FLIGHT_SQL_EXPORT CloseSessionResult {
     return left.Equals(right);
   }
   friend bool operator!=(const CloseSessionResult& left,
-                         const CloseSessionResult& right)){
+                         const CloseSessionResult& right) {
     return !(left == right);
   }
 
@@ -951,7 +956,7 @@ struct ARROW_FLIGHT_SQL_EXPORT CloseSessionResult {
   /// \brief Deserialize this message from its wire-format representation.
   static arrow::Result<CloseSessionResult>
   Deserialize(std::string_view serialized);
-}
+};
 
 /// \brief An iterator to FlightInfo instances returned by ListFlights.
 class ARROW_FLIGHT_EXPORT FlightListing {
