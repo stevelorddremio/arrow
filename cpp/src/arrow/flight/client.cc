@@ -742,7 +742,7 @@ FlightClient::SetSessionOptions(
 }
 
 ::arrow::Result<GetSessionOptionsResult>
-FlightClient::GetSessionOptions (
+FlightClient::GetSessionOptions(
     const FlightCallOptions& options,
     const GetSessionOptionsRequest& request) {
   RETURN_NOT_OK(CheckOpen());
