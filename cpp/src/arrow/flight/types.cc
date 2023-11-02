@@ -409,31 +409,30 @@ std::ostream& operator<<(std::ostream& os, std::map<std::string, T> m) {
 }
 
 namespace {
-  static bool CompareSessionOptionMaps(
-      const std::map<std::string, SessionOptionValue>& a,
-      const std::map<std::string, SessionOptionValue>& b) {
-    if (a.size() != b.size()) {
+static bool CompareSessionOptionMaps(const std::map<std::string, SessionOptionValue>& a,
+                                     const std::map<std::string, SessionOptionValue>& b) {
+  if (a.size() != b.size()) {
+    return false;
+  }
+  for (const auto& [k, v] : a) {
+    if (!b.count(k)) {
       return false;
     }
-    for (const auto & [k, v] : a) {
-      if (!b.count(k)) {
+    try {
+      const auto& b_v = b.at(k);
+      if (v.index() != b_v.index()) {
         return false;
       }
-      try {
-        const auto& b_v = b.at(k);
-        if (v.index() != b_v.index()) {
-          return false;
-        }
-        if (v != b_v) {
-          return false;
-        }
-      } catch ( const std::out_of_range& e ) {
+      if (v != b_v) {
         return false;
       }
+    } catch (const std::out_of_range& e) {
+      return false;
     }
-    return true;
   }
-} // namespace
+  return true;
+}
+}  // namespace
 
 // SetSessionOptionsRequest
 
@@ -449,8 +448,7 @@ bool SetSessionOptionsRequest::Equals(const SetSessionOptionsRequest& other) con
   return CompareSessionOptionMaps(session_options, other.session_options);
 }
 
-arrow::Result<std::string>
-SetSessionOptionsRequest::SerializeToString() const {
+arrow::Result<std::string> SetSessionOptionsRequest::SerializeToString() const {
   pb::SetSessionOptionsRequest pb_request;
   RETURN_NOT_OK(internal::ToProto(*this, &pb_request));
 
@@ -461,8 +459,8 @@ SetSessionOptionsRequest::SerializeToString() const {
   return out;
 }
 
-arrow::Result<SetSessionOptionsRequest>
-SetSessionOptionsRequest::Deserialize(std::string_view serialized) {
+arrow::Result<SetSessionOptionsRequest> SetSessionOptionsRequest::Deserialize(
+    std::string_view serialized) {
   // TODO these & SerializeToString should all be factored out to a superclass
   pb::SetSessionOptionsRequest pb_request;
   if (serialized.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
@@ -496,8 +494,7 @@ bool SetSessionOptionsResult::Equals(const SetSessionOptionsResult& other) const
   return true;
 }
 
-arrow::Result<std::string>
-SetSessionOptionsResult::SerializeToString() const {
+arrow::Result<std::string> SetSessionOptionsResult::SerializeToString() const {
   pb::SetSessionOptionsResult pb_result;
   RETURN_NOT_OK(internal::ToProto(*this, &pb_result));
 
@@ -508,8 +505,8 @@ SetSessionOptionsResult::SerializeToString() const {
   return out;
 }
 
-arrow::Result<SetSessionOptionsResult>
-SetSessionOptionsResult::Deserialize(std::string_view serialized) {
+arrow::Result<SetSessionOptionsResult> SetSessionOptionsResult::Deserialize(
+    std::string_view serialized) {
   pb::SetSessionOptionsResult pb_result;
   if (serialized.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
     return Status::Invalid(
@@ -535,8 +532,7 @@ bool GetSessionOptionsRequest::Equals(const GetSessionOptionsRequest& other) con
   return true;
 }
 
-arrow::Result<std::string>
-GetSessionOptionsRequest::SerializeToString() const {
+arrow::Result<std::string> GetSessionOptionsRequest::SerializeToString() const {
   pb::GetSessionOptionsRequest pb_request;
   RETURN_NOT_OK(internal::ToProto(*this, &pb_request));
 
@@ -547,8 +543,8 @@ GetSessionOptionsRequest::SerializeToString() const {
   return out;
 }
 
-arrow::Result<GetSessionOptionsRequest>
-GetSessionOptionsRequest::Deserialize(std::string_view serialized) {
+arrow::Result<GetSessionOptionsRequest> GetSessionOptionsRequest::Deserialize(
+    std::string_view serialized) {
   pb::GetSessionOptionsRequest pb_request;
   if (serialized.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
     return Status::Invalid(
@@ -578,8 +574,7 @@ bool GetSessionOptionsResult::Equals(const GetSessionOptionsResult& other) const
   return CompareSessionOptionMaps(session_options, other.session_options);
 }
 
-arrow::Result<std::string>
-GetSessionOptionsResult::SerializeToString() const {
+arrow::Result<std::string> GetSessionOptionsResult::SerializeToString() const {
   pb::GetSessionOptionsResult pb_result;
   RETURN_NOT_OK(internal::ToProto(*this, &pb_result));
 
@@ -590,8 +585,8 @@ GetSessionOptionsResult::SerializeToString() const {
   return out;
 }
 
-arrow::Result<GetSessionOptionsResult>
-GetSessionOptionsResult::Deserialize(std::string_view serialized) {
+arrow::Result<GetSessionOptionsResult> GetSessionOptionsResult::Deserialize(
+    std::string_view serialized) {
   pb::GetSessionOptionsResult pb_result;
   if (serialized.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
     return Status::Invalid(
@@ -609,16 +604,11 @@ GetSessionOptionsResult::Deserialize(std::string_view serialized) {
 
 // CloseSessionRequest
 
-std::string CloseSessionRequest::ToString() const {
-  return "<CloseSessionRequest>";
-}
+std::string CloseSessionRequest::ToString() const { return "<CloseSessionRequest>"; }
 
-bool CloseSessionRequest::Equals(const CloseSessionRequest& other) const {
-  return true;
-}
+bool CloseSessionRequest::Equals(const CloseSessionRequest& other) const { return true; }
 
-arrow::Result<std::string>
-CloseSessionRequest::SerializeToString() const {
+arrow::Result<std::string> CloseSessionRequest::SerializeToString() const {
   pb::CloseSessionRequest pb_request;
   RETURN_NOT_OK(internal::ToProto(*this, &pb_request));
 
@@ -629,12 +619,11 @@ CloseSessionRequest::SerializeToString() const {
   return out;
 }
 
-arrow::Result<CloseSessionRequest>
-CloseSessionRequest::Deserialize(std::string_view serialized) {
+arrow::Result<CloseSessionRequest> CloseSessionRequest::Deserialize(
+    std::string_view serialized) {
   pb::CloseSessionRequest pb_request;
   if (serialized.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
-    return Status::Invalid(
-        "Serialized CloseSessionRequest size should not exceed 2 GiB");
+    return Status::Invalid("Serialized CloseSessionRequest size should not exceed 2 GiB");
   }
   google::protobuf::io::ArrayInputStream input(serialized.data(),
                                                static_cast<int>(serialized.size()));
@@ -657,14 +646,13 @@ std::string CloseSessionResult::ToString() const {
 }
 
 bool CloseSessionResult::Equals(const CloseSessionResult& other) const {
-  if (status != other.status)    {
+  if (status != other.status) {
     return false;
   }
   return true;
 }
 
-arrow::Result<std::string>
-CloseSessionResult::SerializeToString() const {
+arrow::Result<std::string> CloseSessionResult::SerializeToString() const {
   pb::CloseSessionResult pb_result;
   RETURN_NOT_OK(internal::ToProto(*this, &pb_result));
 
@@ -675,12 +663,11 @@ CloseSessionResult::SerializeToString() const {
   return out;
 }
 
-arrow::Result<CloseSessionResult>
-CloseSessionResult::Deserialize(std::string_view serialized) {
+arrow::Result<CloseSessionResult> CloseSessionResult::Deserialize(
+    std::string_view serialized) {
   pb::CloseSessionResult pb_result;
   if (serialized.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
-    return Status::Invalid(
-        "Serialized CloseSessionResult size should not exceed 2 GiB");
+    return Status::Invalid("Serialized CloseSessionResult size should not exceed 2 GiB");
   }
   google::protobuf::io::ArrayInputStream input(serialized.data(),
                                                static_cast<int>(serialized.size()));
@@ -821,26 +808,20 @@ const ActionType ActionType::kRenewFlightEndpoint =
                "Request Message: RenewFlightEndpointRequest\n"
                "Response Message: Renewed FlightEndpoint"};
 const ActionType ActionType::kSetSessionOptions =
-    ActionType{
-      "SetSessionOptions",
-      "Set client session options by key/value pairs.\n"
-      "Request Message: SetSessionOptionsRequest\n"
-      "Response Message: SetSessionOptionsResult\n"
-    };
+    ActionType{"SetSessionOptions",
+               "Set client session options by key/value pairs.\n"
+               "Request Message: SetSessionOptionsRequest\n"
+               "Response Message: SetSessionOptionsResult\n"};
 const ActionType ActionType::kGetSessionOptions =
-    ActionType{
-      "GetSessionOptions",
-      "Get current client session options\n"
-      "Request Message: GetSessionOptionsRequest\n"
-      "Response Message: GetSessionOptionsResult\n"
-    };
+    ActionType{"GetSessionOptions",
+               "Get current client session options\n"
+               "Request Message: GetSessionOptionsRequest\n"
+               "Response Message: GetSessionOptionsResult\n"};
 const ActionType ActionType::kCloseSession =
-    ActionType{
-      "CloseSession",
-      "Explicitly close/invalidate the cookie-specified client session.\n"
-      "Request Message: CloseSessionRequest\n"
-      "Response Message: CloseSessionResult\n"
-    };
+    ActionType{"CloseSession",
+               "Explicitly close/invalidate the cookie-specified client session.\n"
+               "Request Message: CloseSessionRequest\n"
+               "Response Message: CloseSessionResult\n"};
 
 >>>>>>> 5df37ac44 (WIP: High-level design review ONLY)
 bool ActionType::Equals(const ActionType& other) const {
