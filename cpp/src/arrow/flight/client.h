@@ -425,14 +425,14 @@ class ARROW_FLIGHT_EXPORT FlightClient {
   ::arrow::Result<SetSessionOptionsResult> SetSessionOptions(
       const FlightCallOptions& options, const SetSessionOptionsRequest& request);
 
-  /// \\brief Get the current server session options. The session is generally
+  /// \brief Get the current server session options. The session is generally
   /// accessed via an HTTP cookie.
   /// \param[in] options Per-RPC options
   /// \param[in] request The (empty) GetSessionOptions request object.
   ::arrow::Result<GetSessionOptionsResult> GetSessionOptions(
       const FlightCallOptions& options, const GetSessionOptionsRequest& request);
 
-  /// \\brief Close/invalidate the current server session. The session is generally
+  /// \brief Close/invalidate the current server session. The session is generally
   /// accessed via an HTTP cookie.
   /// \param[in] options Per-RPC options
   /// \param[in] request The (empty) CloseSession request object.
