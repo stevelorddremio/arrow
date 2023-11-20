@@ -50,6 +50,7 @@ public class JniWrapper {
    * and store the output in ValueVectors. Throws an exception in case of errors
    *
    * @param expander VectorExpander object. Used for callbacks from cpp.
+   * @param listExpander ListVectorExpander object. Used for callbacks from cpp.
    * @param moduleId moduleId representing expressions. Created using a call to
    *                 buildNativeCode
    * @param numRows Number of rows in the record batch
@@ -63,7 +64,7 @@ public class JniWrapper {
    * @param outSizes The allocated size of the output buffers. On successful evaluation,
    *                 the result is stored in the output buffers
    */
-  native void evaluateProjector(Object expander, long moduleId, int numRows,
+  native void evaluateProjector(Object expander, Object listExpander, long moduleId, int numRows,
                                 long[] bufAddrs, long[] bufSizes,
                                 int selectionVectorType, int selectionVectorSize,
                                 long selectionVectorBufferAddr, long selectionVectorBufferSize,

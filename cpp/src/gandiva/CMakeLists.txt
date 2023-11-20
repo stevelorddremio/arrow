@@ -65,9 +65,11 @@ set(SRC_FILES
     external_c_functions.cc
     filter.cc
     function_holder_maker_registry.cc
+    array_ops.cc
     function_ir_builder.cc
     function_registry.cc
     function_registry_arithmetic.cc
+    function_registry_array.cc
     function_registry_datetime.cc
     function_registry_hash.cc
     function_registry_math_ops.cc
@@ -255,7 +257,8 @@ add_gandiva_test(internals-test
                  hash_utils_test.cc
                  gdv_function_stubs_test.cc
                  interval_holder_test.cc
-                 tests/test_util.cc)
+                 tests/test_util.cc
+                 array_ops_test.cc)
 
 add_subdirectory(precompiled)
 add_subdirectory(tests)

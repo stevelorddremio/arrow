@@ -22,16 +22,15 @@ import java.util.List;
 
 import org.apache.arrow.gandiva.exceptions.EvaluatorClosedException;
 import org.apache.arrow.gandiva.exceptions.GandivaException;
-import org.apache.arrow.gandiva.exceptions.UnsupportedTypeException;
 import org.apache.arrow.gandiva.expression.ArrowTypeHelper;
 import org.apache.arrow.gandiva.expression.ExpressionTree;
 import org.apache.arrow.gandiva.ipc.GandivaTypes;
 import org.apache.arrow.gandiva.ipc.GandivaTypes.SelectionVectorType;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.BaseVariableWidthVector;
-import org.apache.arrow.vector.FixedWidthVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VariableWidthVector;
+import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.ipc.message.ArrowBuffer;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -352,18 +351,21 @@ public class Projector {
 
     boolean hasVariableWidthColumns = false;
     BaseVariableWidthVector[] resizableVectors = new BaseVariableWidthVector[outColumns.size()];
+    ListVector[] resizableListVectors = new ListVector[outColumns.size()];
+
     long[] outAddrs = new long[3 * outColumns.size()];
     long[] outSizes = new long[3 * outColumns.size()];
+
     idx = 0;
     int outColumnIdx = 0;
+    final int listVectorBufferCount = 5;
     for (ValueVector valueVector : outColumns) {
-      boolean isFixedWith = valueVector instanceof FixedWidthVector;
-      boolean isVarWidth = valueVector instanceof VariableWidthVector;
-      if (!isFixedWith && !isVarWidth) {
-        throw new UnsupportedTypeException(
-            "Unsupported value vector type " + valueVector.getField().getFieldType());
+      if (valueVector instanceof ListVector) {
+        outAddrs = new long[listVectorBufferCount * outColumns.size()];
+        outSizes = new long[listVectorBufferCount * outColumns.size()];
       }
 
+      boolean isVarWidth = valueVector instanceof VariableWidthVector;
       outAddrs[idx] = valueVector.getValidityBuffer().memoryAddress();
       outSizes[idx++] = valueVector.getValidityBuffer().capacity();
       if (isVarWidth) {
@@ -374,19 +376,45 @@ public class Projector {
         // save vector to allow for resizing.
         resizableVectors[outColumnIdx] = (BaseVariableWidthVector) valueVector;
       }
-      outAddrs[idx] = valueVector.getDataBuffer().memoryAddress();
-      outSizes[idx++] = valueVector.getDataBuffer().capacity();
+      if (valueVector instanceof ListVector) {
+        hasVariableWidthColumns = true;
+        resizableListVectors[outColumnIdx] = (ListVector) valueVector;
+        List<ArrowBuf> fieldBufs = ((ListVector) valueVector).getDataVector().getFieldBuffers();
+        outAddrs[idx] = valueVector.getOffsetBuffer().memoryAddress();
+        outSizes[idx++] = valueVector.getOffsetBuffer().capacity();
+
+        //vector valid
+        outAddrs[idx] = ((ListVector) valueVector).getDataVector().getFieldBuffers()
+            .get(ListVectorExpander.validityBufferIndex).memoryAddress();
+        outSizes[idx++] = ((ListVector) valueVector).getDataVector().getFieldBuffers()
+            .get(ListVectorExpander.validityBufferIndex).capacity();
+
+        //vector offset
+        outAddrs[idx] = ((ListVector) valueVector).getDataVector().getFieldBuffers()
+            .get(ListVectorExpander.valueBufferIndex).memoryAddress();
+        outSizes[idx++] = ((ListVector) valueVector).getDataVector().getFieldBuffers()
+            .get(ListVectorExpander.valueBufferIndex).capacity();
+      } else {
+        outAddrs[idx] = valueVector.getDataBuffer().memoryAddress();
+        outSizes[idx++] = valueVector.getDataBuffer().capacity();
+      }
 
       valueVector.setValueCount(selectionVectorRecordCount);
       outColumnIdx++;
     }
-
     wrapper.evaluateProjector(
         hasVariableWidthColumns ? new VectorExpander(resizableVectors) : null,
+        hasVariableWidthColumns ? new ListVectorExpander(resizableListVectors) : null,
         this.moduleId, numRows, bufAddrs, bufSizes,
         selectionVectorType, selectionVectorRecordCount,
         selectionVectorAddr, selectionVectorSize,
         outAddrs, outSizes);
+
+    for (ValueVector valueVector : outColumns) {
+      if (valueVector instanceof ListVector) {
+        ((ListVector) valueVector).setLastSet(selectionVectorRecordCount - 1);
+      }
+    }
   }
 
   /**

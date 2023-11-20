@@ -35,6 +35,7 @@ add_gandiva_test(projector-test
                  test_util.cc
                  to_string_test.cc
                  utf8_test.cc
+                 list_test
                  secondary_cache_test)
 
 if(ARROW_BUILD_STATIC)
