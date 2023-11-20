@@ -17,6 +17,7 @@
 
 package org.apache.arrow.gandiva.evaluator;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -30,13 +31,18 @@ import com.google.common.base.Objects;
 public class FunctionSignature {
   private final String name;
   private final ArrowType returnType;
-  private final List<ArrowType> paramTypes;
+  private final ArrowType returnListType;
+  private final List<List<ArrowType>> paramTypes;
 
   public ArrowType getReturnType() {
     return returnType;
   }
 
-  public List<ArrowType> getParamTypes() {
+  public ArrowType getReturnListType() {
+    return returnListType;
+  }
+
+  public List<List<ArrowType>> getParamTypes() {
     return paramTypes;
   }
 
@@ -48,12 +54,34 @@ public class FunctionSignature {
    * Ctor.
    * @param name - name of the function.
    * @param returnType - data type of return
+   * @param returnListType optional list type
+   * @param paramTypes - data type of input args.
+   */
+  public FunctionSignature(String name, ArrowType returnType, ArrowType returnListType, 
+      List<List<ArrowType>> paramTypes) {
+    this.name = name;
+    this.returnType = returnType;
+    this.returnListType = returnListType;
+    this.paramTypes = paramTypes;
+  }
+
+  /**
+   * Ctor.
+   * @param name - name of the function.
+   * @param returnType - data type of return
    * @param paramTypes - data type of input args.
    */
   public FunctionSignature(String name, ArrowType returnType, List<ArrowType> paramTypes) {
     this.name = name;
     this.returnType = returnType;
-    this.paramTypes = paramTypes;
+    this.returnListType = ArrowType.Null.INSTANCE;
+    this.paramTypes = new ArrayList<List<ArrowType>>();
+    for (ArrowType paramType : paramTypes) {
+      List<ArrowType> paramArrowList = new ArrayList<ArrowType>();
+      paramArrowList.add(paramType);
+      this.paramTypes.add(paramArrowList);
+    }
+    
   }
 
   /**
@@ -71,12 +99,13 @@ public class FunctionSignature {
     final FunctionSignature other = (FunctionSignature) signature;
     return this.name.equalsIgnoreCase(other.name) &&
         Objects.equal(this.returnType, other.returnType) &&
+        Objects.equal(this.returnListType, other.returnListType) &&
         Objects.equal(this.paramTypes, other.paramTypes);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(this.name.toLowerCase(), this.returnType, this.paramTypes);
+    return Objects.hashCode(this.name.toLowerCase(), this.returnType, this.returnListType, this.paramTypes);
   }
 
   @Override
@@ -84,6 +113,7 @@ public class FunctionSignature {
     return MoreObjects.toStringHelper(this)
             .add("name ", name)
             .add("return type ", returnType)
+            .add("return list type", returnListType)
             .add("param types ", paramTypes)
             .toString();
 
