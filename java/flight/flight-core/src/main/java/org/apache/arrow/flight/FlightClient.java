@@ -490,6 +490,158 @@ public class FlightClient implements AutoCloseable {
   }
 
   /**
+   * Cancel execution of a distributed query.
+   *
+   * @param request The query to cancel.
+   * @param options Call options.
+   * @return The server response.
+   */
+  public CancelFlightInfoResult cancelFlightInfo(CancelFlightInfoRequest request, CallOption... options) {
+    Action action = new Action(FlightConstants.CANCEL_FLIGHT_INFO.getType(), request.serialize().array());
+    Iterator<Result> results = doAction(action, options);
+    if (!results.hasNext()) {
+      throw CallStatus.INTERNAL
+          .withDescription("Server did not return a response")
+          .toRuntimeException();
+    }
+
+    CancelFlightInfoResult result;
+    try {
+      result = CancelFlightInfoResult.deserialize(ByteBuffer.wrap(results.next().getBody()));
+    } catch (IOException e) {
+      throw CallStatus.INTERNAL
+          .withDescription("Failed to parse server response: " + e)
+          .withCause(e)
+          .toRuntimeException();
+    }
+    results.forEachRemaining((ignored) -> {
+    });
+    return result;
+  }
+
+  /**
+   * Request the server to extend the lifetime of a query result set.
+   *
+   * @param request The result set partition.
+   * @param options Call options.
+   * @return The new endpoint with an updated expiration time.
+   */
+  public FlightEndpoint renewFlightEndpoint(RenewFlightEndpointRequest request, CallOption... options) {
+    Action action = new Action(FlightConstants.RENEW_FLIGHT_ENDPOINT.getType(), request.serialize().array());
+    Iterator<Result> results = doAction(action, options);
+    if (!results.hasNext()) {
+      throw CallStatus.INTERNAL
+          .withDescription("Server did not return a response")
+          .toRuntimeException();
+    }
+
+    FlightEndpoint result;
+    try {
+      result = FlightEndpoint.deserialize(ByteBuffer.wrap(results.next().getBody()));
+    } catch (IOException | URISyntaxException e) {
+      throw CallStatus.INTERNAL
+          .withDescription("Failed to parse server response: " + e)
+          .withCause(e)
+          .toRuntimeException();
+    }
+    results.forEachRemaining((ignored) -> {
+    });
+    return result;
+  }
+
+////////////////////////////////////////////////
+  /**
+   * Request the server to extend the lifetime of a query result set.
+   *
+   * @param request The session options to set on the server.
+   * @param options Call options.
+   * @return The result containing per-value error statuses, if any.
+   */
+  public SetSessionOptionsResult setSessionOptions(SetSessionOptionsRequest request, CallOption... options) {
+    Action action = new Action(FlightConstants.SET_SESSION_OPTIONS.getType(), request.serialize().array());
+    Iterator<Result> results = doAction(action, options);
+    if (!results.hasNext()) {
+      throw CallStatus.INTERNAL
+          .withDescription("Server did not return a response")
+          .toRuntimeException();
+    }
+
+    SetSessionOptionsResult result;
+    try {
+      result = FlightEndpoint.deserialize(ByteBuffer.wrap(results.next().getBody()));
+    } catch (IOException | URISyntaxException e) {
+      throw CallStatus.INTERNAL
+          .withDescription("Failed to parse server response: " + e)
+          .withCause(e)
+          .toRuntimeException();
+    }
+    results.forEachRemaining((ignored) -> {
+    });
+    return result;
+  }
+
+  /**
+   * Request the server to extend the lifetime of a query result set.
+   *
+   * @param request The (empty) GetSessionOptionsRequest.
+   * @param options Call options.
+   * @return The result containing the set of session options configured on the server.
+   */
+  public GetSessionOptionsResult getSessionOptions(SetSessionOptionsRequest request, CallOption... options) {
+    Action action = new Action(FlightConstants.GET_SESSION_OPTIONS.getType(), request.serialize().array());
+    Iterator<Result> results = doAction(action, options);
+    if (!results.hasNext()) {
+      throw CallStatus.INTERNAL
+          .withDescription("Server did not return a response")
+          .toRuntimeException();
+    }
+
+    FlightGetSessionOptionsResultEndpoint result;
+    try {
+      result = GetSessionOptionsResult.deserialize(ByteBuffer.wrap(results.next().getBody()));
+    } catch (IOException e) {
+      throw CallStatus.INTERNAL
+          .withDescription("Failed to parse server response: " + e)
+          .withCause(e)
+          .toRuntimeException();
+    }
+    results.forEachRemaining((ignored) -> {
+    });
+    return result;
+  }
+
+  /**
+   * Request the server to extend the lifetime of a query result set.
+   *
+   * @param request The (empty) CloseSessionRequest.
+   * @param options Call options.
+   * @return The result containing the status of the close operation.
+   */
+  public CloseSessionResult closeSession(SetSessionOptionsRequest request, CallOption... options) {
+    Action action = new Action(FlightConstants.CLOSE_SESSION.getType(), request.serialize().array());
+    Iterator<Result> results = doAction(action, options);
+    if (!results.hasNext()) {
+      throw CallStatus.INTERNAL
+          .withDescription("Server did not return a response")
+          .toRuntimeException();
+    }
+
+    CloseSessionResult result;
+    try {
+      result = CloseSessionResult.deserialize(ByteBuffer.wrap(results.next().getBody()));
+    } catch (IOException e) {
+      throw CallStatus.INTERNAL
+          .withDescription("Failed to parse server response: " + e)
+          .withCause(e)
+          .toRuntimeException();
+    }
+    results.forEachRemaining((ignored) -> {
+    });
+    return result;
+  }
+////////////////////////////////////////////////
+
+  /**
    * Interface for writers to an Arrow data stream.
    */
   public interface ClientStreamListener extends OutboundStreamListener {
