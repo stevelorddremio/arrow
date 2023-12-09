@@ -549,7 +549,6 @@ public class FlightClient implements AutoCloseable {
     return result;
   }
 
-////////////////////////////////////////////////
   /**
    * Request the server to extend the lifetime of a query result set.
    *
@@ -639,7 +638,6 @@ public class FlightClient implements AutoCloseable {
     });
     return result;
   }
-////////////////////////////////////////////////
 
   /**
    * Interface for writers to an Arrow data stream.
