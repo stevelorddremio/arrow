@@ -470,8 +470,8 @@ arrow::Result<CancelFlightInfoRequest> CancelFlightInfoRequest::Deserialize(
   return out;
 }
 
-static const char* const SetSessionOptionStatusNames[] = {
-    "Unspecified", "InvalidName", "InvalidValue", "Error"};
+static const char* const SetSessionOptionStatusNames[] = {"Unspecified", "InvalidName",
+                                                          "InvalidValue", "Error"};
 static const char* const CloseSessionStatusNames[] = {"Unspecified", "Closed", "Closing",
                                                       "NotClosable"};
 
@@ -480,7 +480,8 @@ std::string ToString(const SetSessionOptionErrorValue& error_value) {
   return SetSessionOptionStatusNames[static_cast<int>(error_value)];
 }
 
-std::ostream& operator<<(std::ostream& os, const SetSessionOptionErrorValue& error_value) {
+std::ostream& operator<<(std::ostream& os,
+                         const SetSessionOptionErrorValue& error_value) {
   os << ToString(error_value);
   return os;
 }
@@ -510,13 +511,16 @@ std::ostream& operator<<(std::ostream& os, const SessionOptionValue& v) {
   if (std::holds_alternative<std::monostate>(v)) {
     os << "<EMPTY>";
   } else {
-    std::visit([&](const auto& x) {
-      if constexpr (std::is_convertible_v<std::decay_t<decltype(x)>, std::string_view>) {
-        os << std::quoted(x);
-      } else {
-        os << x;
-      }
-    }, v);
+    std::visit(
+        [&](const auto& x) {
+          if constexpr (std::is_convertible_v<std::decay_t<decltype(x)>,
+                                              std::string_view>) {
+            os << std::quoted(x);
+          } else {
+            os << x;
+          }
+        },
+        v);
   }
   return os;
 }
