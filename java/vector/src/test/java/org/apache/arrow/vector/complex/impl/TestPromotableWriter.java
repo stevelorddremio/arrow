@@ -22,11 +22,13 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.DirtyRootAllocator;
 import org.apache.arrow.vector.LargeVarBinaryVector;
 import org.apache.arrow.vector.LargeVarCharVector;
@@ -39,8 +41,11 @@ import org.apache.arrow.vector.complex.UnionVector;
 import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 import org.apache.arrow.vector.holders.DurationHolder;
 import org.apache.arrow.vector.holders.FixedSizeBinaryHolder;
+import org.apache.arrow.vector.holders.NullableDecimalHolder;
+import org.apache.arrow.vector.holders.NullableIntHolder;
 import org.apache.arrow.vector.holders.NullableTimeStampMilliTZHolder;
 import org.apache.arrow.vector.holders.TimeStampMilliTZHolder;
+import org.apache.arrow.vector.holders.UnionHolder;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -48,6 +53,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.Text;
+import org.apache.arrow.vector.util.DecimalUtility;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -587,6 +593,43 @@ public class TestPromotableWriter {
       assertEquals("row2", new String(uv.get(1)));
       assertEquals("row3", new String(uv.get(2)));
       assertEquals("row4", new String(uv.get(3)));
+    }
+  }
+
+  @Test
+  public void testPromoteToUnionFromDecimal() throws Exception {
+    try (final NonNullableStructVector container = NonNullableStructVector.empty(EMPTY_SCHEMA_PATH, allocator);
+         final DecimalVector v = container.addOrGet("dec",
+             FieldType.nullable(new ArrowType.Decimal(38, 1, 128)), DecimalVector.class);
+         final PromotableWriter writer = new PromotableWriter(v, container)) {
+
+      container.allocateNew();
+      container.setValueCount(1);
+
+      writer.setPosition(0);
+      writer.writeDecimal(new BigDecimal("0.1"));
+      writer.setPosition(1);
+      writer.writeInt(1);
+
+      container.setValueCount(3);
+
+      UnionVector unionVector = (UnionVector) container.getChild("dec");
+      UnionHolder holder = new UnionHolder();
+
+      unionVector.get(0, holder);
+      NullableDecimalHolder decimalHolder = new NullableDecimalHolder();
+      holder.reader.read(decimalHolder);
+
+      assertEquals(1, decimalHolder.isSet);
+      assertEquals(new BigDecimal("0.1"),
+          DecimalUtility.getBigDecimalFromArrowBuf(decimalHolder.buffer, 0, decimalHolder.scale, 128));
+
+      unionVector.get(1, holder);
+      NullableIntHolder intHolder = new NullableIntHolder();
+      holder.reader.read(intHolder);
+
+      assertEquals(1, intHolder.isSet);
+      assertEquals(1, intHolder.value);
     }
   }
 }
