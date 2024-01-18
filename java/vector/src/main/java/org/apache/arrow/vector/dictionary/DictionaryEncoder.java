@@ -112,7 +112,7 @@ public class DictionaryEncoder {
    * @param valueCount dictionary vector valueCount.
    * @return index type.
    */
-  public static ArrowType.Int getIndexType(int valueCount) {
+  public static ArrowType.Int getIndexType(long valueCount) {
     Preconditions.checkArgument(valueCount >= 0);
     if (valueCount <= Byte.MAX_VALUE) {
       return new ArrowType.Int(8, true);

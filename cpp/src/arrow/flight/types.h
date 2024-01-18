@@ -601,8 +601,6 @@ class ARROW_FLIGHT_EXPORT FlightInfo {
   mutable bool reconstructed_schema_;
 };
 
-<<<<<<< HEAD
-=======
 /// \brief The information to process a long-running query.
 class ARROW_FLIGHT_EXPORT PollInfo {
  public:
@@ -884,14 +882,6 @@ struct ARROW_FLIGHT_EXPORT CloseSessionResult {
   static arrow::Result<CloseSessionResult> Deserialize(std::string_view serialized);
 };
 
-<<<<<<< HEAD
-
-
-
-
->>>>>>> 5df37ac44 (WIP: High-level design review ONLY)
-=======
->>>>>>> d8dba8435 (Add new SetSessionOption statuses to Proto)
 /// \brief An iterator to FlightInfo instances returned by ListFlights.
 class ARROW_FLIGHT_EXPORT FlightListing {
  public:
