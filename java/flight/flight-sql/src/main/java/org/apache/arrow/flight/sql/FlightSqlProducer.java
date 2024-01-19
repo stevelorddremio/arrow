@@ -48,6 +48,7 @@ import static org.apache.arrow.vector.types.Types.MinorType.VARCHAR;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.nio.ByteBuffer;
 import java.util.List;
 
 import org.apache.arrow.flight.Action;
