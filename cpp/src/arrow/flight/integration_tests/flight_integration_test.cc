@@ -53,6 +53,23 @@ TEST(FlightIntegration, AuthBasicProto) { ASSERT_OK(RunScenario("auth:basic_prot
 
 TEST(FlightIntegration, Middleware) { ASSERT_OK(RunScenario("middleware")); }
 
+TEST(FlightIntegration, Ordered) { ASSERT_OK(RunScenario("ordered")); }
+
+TEST(FlightIntegration, ExpirationTimeDoGet) {
+  ASSERT_OK(RunScenario("expiration_time:do_get"));
+}
+
+TEST(FlightIntegration, ExpirationTimeListActions) {
+  ASSERT_OK(RunScenario("expiration_time:list_actions"));
+}
+
+TEST(FlightIntegration, SessionOptions) {
+  ASSERT_OK(RunScenario("session_options"));
+}
+
+TEST(FlightIntegration, PollFlightInfo) { ASSERT_OK(RunScenario("poll_flight_info")); }
+}
+
 TEST(FlightIntegration, FlightSql) { ASSERT_OK(RunScenario("flight_sql")); }
 
 TEST(FlightIntegration, FlightSqlExtension) {
