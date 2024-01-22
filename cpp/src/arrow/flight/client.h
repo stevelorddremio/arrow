@@ -411,13 +411,7 @@ class ARROW_FLIGHT_EXPORT FlightClient {
     *reader = std::move(output.reader);
     return Status::OK();
   }
-/// \\brief Set server session option(s) by key/value. Sessions are generally
-/// persisted via HTTP cookies.
-/// \param[in] options Per-RPC options
-/// \param[in] request The server session options to set
-::arrow::Result<SetSessionOptionsResult> SetSessionOptions(
-    const FlightCallOptions& options,
-    const SetSessionOptionsRequest& request);
+
   /// \\brief Set server session option(s) by key/value. Sessions are generally
   /// persisted via HTTP cookies.
   /// \param[in] options Per-RPC options

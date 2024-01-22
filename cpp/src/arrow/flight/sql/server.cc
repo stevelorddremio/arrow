@@ -755,9 +755,7 @@ Status FlightSqlServerBase::DoPut(const ServerCallContext& context,
 
 Status FlightSqlServerBase::ListActions(const ServerCallContext& context,
                                         std::vector<ActionType>* actions) {
-  *actions = {ActionType::kCancelFlightInfo,
-              ActionType::kRenewFlightEndpoint,
-              FlightSqlServerBase::kBeginSavepointActionType,
+  *actions = {FlightSqlServerBase::kBeginSavepointActionType,
               FlightSqlServerBase::kBeginTransactionActionType,
               FlightSqlServerBase::kCancelQueryActionType,
               FlightSqlServerBase::kCreatePreparedStatementActionType,

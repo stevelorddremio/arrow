@@ -49,11 +49,6 @@ class IntegrationTest {
   }
 
   @Test
-  void appMetadataFlightInfoEndpoint() throws Exception {
-    testScenario("app_metadata_flight_info_endpoint");
-  }
-
-  @Test
   void sessionOptions() throws Exception {
     testScenario("session_options");
   }

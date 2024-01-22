@@ -21,6 +21,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -601,94 +602,6 @@ class ARROW_FLIGHT_EXPORT FlightInfo {
   mutable bool reconstructed_schema_;
 };
 
-/// \brief The information to process a long-running query.
-class ARROW_FLIGHT_EXPORT PollInfo {
- public:
-  /// The currently available results so far.
-  std::unique_ptr<FlightInfo> info = NULLPTR;
-  /// The descriptor the client should use on the next try. If unset,
-  /// the query is complete.
-  std::optional<FlightDescriptor> descriptor = std::nullopt;
-  /// Query progress. Must be in [0.0, 1.0] but need not be
-  /// monotonic or nondecreasing. If unknown, do not set.
-  std::optional<double> progress = std::nullopt;
-  /// Expiration time for this request. After this passes, the server
-  /// might not accept the poll descriptor anymore (and the query may
-  /// be cancelled). This may be updated on a call to PollFlightInfo.
-  std::optional<Timestamp> expiration_time = std::nullopt;
-
-  PollInfo()
-      : info(NULLPTR),
-        descriptor(std::nullopt),
-        progress(std::nullopt),
-        expiration_time(std::nullopt) {}
-
-  explicit PollInfo(std::unique_ptr<FlightInfo> info,
-                    std::optional<FlightDescriptor> descriptor,
-                    std::optional<double> progress,
-                    std::optional<Timestamp> expiration_time)
-      : info(std::move(info)),
-        descriptor(std::move(descriptor)),
-        progress(progress),
-        expiration_time(expiration_time) {}
-
-  explicit PollInfo(const PollInfo& other)
-      : info(other.info ? std::make_unique<FlightInfo>(*other.info) : NULLPTR),
-        descriptor(other.descriptor),
-        progress(other.progress),
-        expiration_time(other.expiration_time) {}
-
-  /// \brief Get the wire-format representation of this type.
-  ///
-  /// Useful when interoperating with non-Flight systems (e.g. REST
-  /// services) that may want to return Flight types.
-  arrow::Result<std::string> SerializeToString() const;
-
-  /// \brief Parse the wire-format representation of this type.
-  ///
-  /// Useful when interoperating with non-Flight systems (e.g. REST
-  /// services) that may want to return Flight types.
-  static arrow::Result<std::unique_ptr<PollInfo>> Deserialize(
-      std::string_view serialized);
-
-  std::string ToString() const;
-
-  /// Compare two PollInfo for equality. This will compare the
-  /// serialized schema representations, NOT the logical equality of
-  /// the schemas.
-  bool Equals(const PollInfo& other) const;
-
-  friend bool operator==(const PollInfo& left, const PollInfo& right) {
-    return left.Equals(right);
-  }
-  friend bool operator!=(const PollInfo& left, const PollInfo& right) {
-    return !(left == right);
-  }
-};
-
-/// \brief The request of the CancelFlightInfoRequest action.
-struct ARROW_FLIGHT_EXPORT CancelFlightInfoRequest {
-  std::unique_ptr<FlightInfo> info;
-
-  std::string ToString() const;
-  bool Equals(const CancelFlightInfoRequest& other) const;
-
-  friend bool operator==(const CancelFlightInfoRequest& left,
-                         const CancelFlightInfoRequest& right) {
-    return left.Equals(right);
-  }
-  friend bool operator!=(const CancelFlightInfoRequest& left,
-                         const CancelFlightInfoRequest& right) {
-    return !(left == right);
-  }
-
-  /// \brief Serialize this message to its wire-format representation.
-  arrow::Result<std::string> SerializeToString() const;
-
-  /// \brief Deserialize this message from its wire-format representation.
-  static arrow::Result<CancelFlightInfoRequest> Deserialize(std::string_view serialized);
-};
-
 /// \brief Variant supporting all possible value types for {Set,Get}SessionOptions
 ///
 /// By convention, an attempt to set a valueless (std::monostate) SessionOptionValue
@@ -907,6 +820,11 @@ class ARROW_FLIGHT_EXPORT ResultStream {
 
   ARROW_DEPRECATED("Deprecated in 8.0.0. Use Result-returning overload instead.")
   Status Next(std::unique_ptr<Result>* info);
+
+  /// \brief Read and drop the remaining messages to get the error (if any) from a server.
+  /// \return Status OK if this is no error from a server, any other status if a
+  /// server returns an error.
+  Status Drain();
 };
 
 /// \brief A holder for a RecordBatch with associated Flight metadata.

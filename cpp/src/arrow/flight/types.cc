@@ -831,35 +831,6 @@ std::string ActionType::ToString() const {
                                     description, "'>");
 }
 
-<<<<<<< HEAD
-=======
-const ActionType ActionType::kCancelFlightInfo =
-    ActionType{"CancelFlightInfo",
-               "Explicitly cancel a running FlightInfo.\n"
-               "Request Message: CancelFlightInfoRequest\n"
-               "Response Message: CancelFlightInfoResult"};
-const ActionType ActionType::kRenewFlightEndpoint =
-    ActionType{"RenewFlightEndpoint",
-               "Extend expiration time of the given FlightEndpoint.\n"
-               "Request Message: RenewFlightEndpointRequest\n"
-               "Response Message: Renewed FlightEndpoint"};
-const ActionType ActionType::kSetSessionOptions =
-    ActionType{"SetSessionOptions",
-               "Set client session options by name/value pairs.\n"
-               "Request Message: SetSessionOptionsRequest\n"
-               "Response Message: SetSessionOptionsResult"};
-const ActionType ActionType::kGetSessionOptions =
-    ActionType{"GetSessionOptions",
-               "Get current client session options\n"
-               "Request Message: GetSessionOptionsRequest\n"
-               "Response Message: GetSessionOptionsResult"};
-const ActionType ActionType::kCloseSession =
-    ActionType{"CloseSession",
-               "Explicitly close/invalidate the cookie-specified client session.\n"
-               "Request Message: CloseSessionRequest\n"
-               "Response Message: CloseSessionResult"};
-
->>>>>>> 5df37ac44 (WIP: High-level design review ONLY)
 bool ActionType::Equals(const ActionType& other) const {
   return type == other.type && description == other.description;
 }
@@ -1013,6 +984,14 @@ Status ResultStream::Next(std::unique_ptr<Result>* info) { return Next().Value(i
 
 Status MetadataRecordBatchReader::Next(FlightStreamChunk* next) {
   return Next().Value(next);
+}
+
+Status ResultStream::Drain() {
+  while (true) {
+    ARROW_ASSIGN_OR_RAISE(auto result, Next());
+    if (!result) break;
+  }
+  return Status::OK();
 }
 
 arrow::Result<std::vector<std::shared_ptr<RecordBatch>>>

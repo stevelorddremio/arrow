@@ -703,31 +703,6 @@ Status FlightClient::DoExchange(const FlightCallOptions& options,
   return Status::OK();
 }
 
-// PHOXME implement these...
-arrow::Result<SetSessionOptionsResult> FlightClient::SetSessionOptions(
-    const FlightCallOptions& options, const SetSessionOptionsRequest& request) {
-  RETURN_NOT_OK(CheckOpen());
-  /*
-  */
-}
-
-arrow::Result<GetSessionOptionsResult> FlightClient::GetSessionOptions(
-    const FlightCallOptions& options) {
-  RETURN_NOT_OK(CheckOpen());
-  /*
-  */
-}
-
-arrow::Result<> FlightClient::CloseSession(const FlightCallOptions& options) {
-  RETURN_NOT_OK(CheckOpen());
-  /*
-  */
-}
-
-::arrow::Result<SetSessionOptionsResult>
-FlightClient::SetSessionOptions(
-    const FlightCallOptions& options,
-    const SetSessionOptionsRequest& request) {
 ::arrow::Result<SetSessionOptionsResult> FlightClient::SetSessionOptions(
     const FlightCallOptions& options, const SetSessionOptionsRequest& request) {
   RETURN_NOT_OK(CheckOpen());

@@ -595,13 +595,6 @@ class ARROW_FLIGHT_SQL_EXPORT FlightSqlServerBase : public FlightServerBase {
   virtual Status EndTransaction(const ServerCallContext& context,
                                 const ActionEndTransactionRequest& request);
 
-  /// \brief Attempt to explicitly cancel a FlightInfo.
-  /// \param[in] context  The call context.
-  /// \param[in] request  The CancelFlightInfoRequest.
-  /// \return             The cancellation result.
-  virtual arrow::Result<CancelFlightInfoResult> CancelFlightInfo(
-      const ServerCallContext& context, const CancelFlightInfoRequest& request);
-
   /// \brief Set server session option(s).
   /// \param[in] context  The call context.
   /// \param[in] request  The session options to set.
