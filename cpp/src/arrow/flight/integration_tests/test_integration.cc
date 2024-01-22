@@ -32,6 +32,7 @@
 #include "arrow/flight/sql/client.h"
 #include "arrow/flight/sql/column_metadata.h"
 #include "arrow/flight/sql/server.h"
+#include "arrow/flight/sql/server_session_middleware.h"
 #include "arrow/flight/sql/types.h"
 #include "arrow/flight/test_util.h"
 #include "arrow/flight/types.h"
@@ -269,6 +270,732 @@ class MiddlewareScenario : public Scenario {
   }
 
   std::shared_ptr<TestClientMiddlewareFactory> client_middleware_;
+};
+
+/// \brief The server used for testing FlightInfo.ordered.
+///
+/// If the given command is "ordered", the server sets
+/// FlightInfo.ordered. The client that supports FlightInfo.ordered
+/// must read data from endpoints from front to back. The client that
+/// doesn't support FlightInfo.ordered may read data from endpoints in
+/// random order.
+///
+/// This scenario is passed only when the client supports
+/// FlightInfo.ordered.
+class OrderedServer : public FlightServerBase {
+  Status GetFlightInfo(const ServerCallContext& context,
+                       const FlightDescriptor& descriptor,
+                       std::unique_ptr<FlightInfo>* result) override {
+    const auto ordered = (descriptor.type == FlightDescriptor::DescriptorType::CMD &&
+                          descriptor.cmd == "ordered");
+    auto schema = BuildSchema();
+    std::vector<FlightEndpoint> endpoints;
+    if (ordered) {
+      endpoints.push_back(FlightEndpoint{{"1"}, {}, std::nullopt, ""});
+      endpoints.push_back(FlightEndpoint{{"2"}, {}, std::nullopt, ""});
+      endpoints.push_back(FlightEndpoint{{"3"}, {}, std::nullopt, ""});
+    } else {
+      endpoints.push_back(FlightEndpoint{{"1"}, {}, std::nullopt, ""});
+      endpoints.push_back(FlightEndpoint{{"3"}, {}, std::nullopt, ""});
+      endpoints.push_back(FlightEndpoint{{"2"}, {}, std::nullopt, ""});
+    }
+    ARROW_ASSIGN_OR_RAISE(
+        auto info, FlightInfo::Make(*schema, descriptor, endpoints, -1, -1, ordered));
+    *result = std::make_unique<FlightInfo>(info);
+    return Status::OK();
+  }
+
+  Status DoGet(const ServerCallContext& context, const Ticket& request,
+               std::unique_ptr<FlightDataStream>* stream) override {
+    ARROW_ASSIGN_OR_RAISE(auto builder, RecordBatchBuilder::Make(
+                                            BuildSchema(), arrow::default_memory_pool()));
+    auto number_builder = builder->GetFieldAs<Int32Builder>(0);
+    if (request.ticket == "1") {
+      ARROW_RETURN_NOT_OK(number_builder->Append(1));
+      ARROW_RETURN_NOT_OK(number_builder->Append(2));
+      ARROW_RETURN_NOT_OK(number_builder->Append(3));
+    } else if (request.ticket == "2") {
+      ARROW_RETURN_NOT_OK(number_builder->Append(10));
+      ARROW_RETURN_NOT_OK(number_builder->Append(20));
+      ARROW_RETURN_NOT_OK(number_builder->Append(30));
+    } else if (request.ticket == "3") {
+      ARROW_RETURN_NOT_OK(number_builder->Append(100));
+      ARROW_RETURN_NOT_OK(number_builder->Append(200));
+      ARROW_RETURN_NOT_OK(number_builder->Append(300));
+    } else {
+      return Status::KeyError("Could not find flight: ", request.ticket);
+    }
+    ARROW_ASSIGN_OR_RAISE(auto record_batch, builder->Flush());
+    std::vector<std::shared_ptr<RecordBatch>> record_batches{record_batch};
+    ARROW_ASSIGN_OR_RAISE(auto record_batch_reader,
+                          RecordBatchReader::Make(record_batches));
+    *stream = std::make_unique<RecordBatchStream>(record_batch_reader);
+    return Status::OK();
+  }
+
+ private:
+  std::shared_ptr<Schema> BuildSchema() {
+    return arrow::schema({arrow::field("number", arrow::int32(), false)});
+  }
+};
+
+/// \brief The ordered scenario.
+///
+/// This tests that the server and client get expected header values.
+class OrderedScenario : public Scenario {
+  Status MakeServer(std::unique_ptr<FlightServerBase>* server,
+                    FlightServerOptions* options) override {
+    server->reset(new OrderedServer());
+    return Status::OK();
+  }
+
+  Status MakeClient(FlightClientOptions* options) override { return Status::OK(); }
+
+  Status RunClient(std::unique_ptr<FlightClient> client) override {
+    ARROW_ASSIGN_OR_RAISE(auto info,
+                          client->GetFlightInfo(FlightDescriptor::Command("ordered")));
+    if (!info->ordered()) {
+      return Status::Invalid("Server must return FlightInfo.ordered = true");
+    }
+    std::vector<std::shared_ptr<arrow::Table>> tables;
+    for (const auto& endpoint : info->endpoints()) {
+      if (!endpoint.locations.empty()) {
+        std::stringstream ss;
+        ss << "[";
+        for (const auto& location : endpoint.locations) {
+          if (ss.str().size() != 1) {
+            ss << ", ";
+          }
+          ss << location.ToString();
+        }
+        ss << "]";
+        return Status::Invalid(
+            "Expected to receive empty locations to use the original service: ",
+            ss.str());
+      }
+      ARROW_ASSIGN_OR_RAISE(auto reader, client->DoGet(endpoint.ticket));
+      ARROW_ASSIGN_OR_RAISE(auto table, reader->ToTable());
+      tables.push_back(table);
+    }
+    ARROW_ASSIGN_OR_RAISE(auto table, ConcatenateTables(tables));
+
+    // Build expected table
+    auto schema = arrow::schema({arrow::field("number", arrow::int32(), false)});
+    ARROW_ASSIGN_OR_RAISE(auto builder,
+                          RecordBatchBuilder::Make(schema, arrow::default_memory_pool()));
+    auto number_builder = builder->GetFieldAs<Int32Builder>(0);
+    ARROW_RETURN_NOT_OK(number_builder->Append(1));
+    ARROW_RETURN_NOT_OK(number_builder->Append(2));
+    ARROW_RETURN_NOT_OK(number_builder->Append(3));
+    ARROW_RETURN_NOT_OK(number_builder->Append(10));
+    ARROW_RETURN_NOT_OK(number_builder->Append(20));
+    ARROW_RETURN_NOT_OK(number_builder->Append(30));
+    ARROW_RETURN_NOT_OK(number_builder->Append(100));
+    ARROW_RETURN_NOT_OK(number_builder->Append(200));
+    ARROW_RETURN_NOT_OK(number_builder->Append(300));
+    ARROW_ASSIGN_OR_RAISE(auto expected_record_batch, builder->Flush());
+    std::vector<std::shared_ptr<RecordBatch>> expected_record_batches{
+        expected_record_batch};
+    ARROW_ASSIGN_OR_RAISE(auto expected_table,
+                          Table::FromRecordBatches(expected_record_batches));
+
+    // Check read data
+    if (!table->Equals(*expected_table)) {
+      return Status::Invalid("Read data isn't expected\n", "Expected:\n",
+                             expected_table->ToString(), "Actual:\n", table->ToString());
+    }
+    return Status::OK();
+  }
+};
+
+/// \brief The server used for testing FlightEndpoint.expiration_time.
+///
+/// GetFlightInfo() returns a FlightInfo that has the following
+/// three FlightEndpoints:
+///
+/// 1. No expiration time
+/// 2. 5 seconds expiration time
+/// 3. 6 seconds expiration time
+///
+/// The client can't read data from the first endpoint multiple times
+/// but can read data from the second and third endpoints. The client
+/// can't re-read data from the second endpoint 5 seconds later. The
+/// client can't re-read data from the third endpoint 6 seconds
+/// later.
+///
+/// The client can cancel a returned FlightInfo by pre-defined
+/// CancelFlightInfo action. The client can't read data from endpoints
+/// even within 6 seconds after the action.
+///
+/// The client can extend the expiration time of a FlightEndpoint in
+/// a returned FlightInfo by pre-defined RenewFlightEndpoint
+/// action. The client can read data from endpoints multiple times
+/// within more 10 seconds after the action.
+class ExpirationTimeServer : public FlightServerBase {
+ private:
+  struct EndpointStatus {
+    explicit EndpointStatus(std::optional<Timestamp> expiration_time)
+        : expiration_time(expiration_time) {}
+
+    std::optional<Timestamp> expiration_time;
+    uint32_t num_gets = 0;
+    bool cancelled = false;
+  };
+
+ public:
+  ExpirationTimeServer() : FlightServerBase(), statuses_() {}
+
+  Status GetFlightInfo(const ServerCallContext& context,
+                       const FlightDescriptor& descriptor,
+                       std::unique_ptr<FlightInfo>* result) override {
+    statuses_.clear();
+    auto schema = BuildSchema();
+    std::vector<FlightEndpoint> endpoints;
+    AddEndpoint(endpoints, "No expiration time", std::nullopt);
+    AddEndpoint(endpoints, "5 seconds",
+                Timestamp::clock::now() + std::chrono::seconds{5});
+    AddEndpoint(endpoints, "6 seconds",
+                Timestamp::clock::now() + std::chrono::seconds{6});
+    ARROW_ASSIGN_OR_RAISE(
+        auto info, FlightInfo::Make(*schema, descriptor, endpoints, -1, -1, false));
+    *result = std::make_unique<FlightInfo>(info);
+    return Status::OK();
+  }
+
+  Status DoGet(const ServerCallContext& context, const Ticket& request,
+               std::unique_ptr<FlightDataStream>* stream) override {
+    ARROW_ASSIGN_OR_RAISE(auto index, ExtractIndexFromTicket(request.ticket));
+    auto& status = statuses_[index];
+    if (status.cancelled) {
+      return Status::KeyError("Invalid flight: canceled: ", request.ticket);
+    }
+    if (status.expiration_time.has_value()) {
+      auto expiration_time = status.expiration_time.value();
+      if (expiration_time < Timestamp::clock::now()) {
+        return Status::KeyError("Invalid flight: expired: ", request.ticket);
+      }
+    } else {
+      if (status.num_gets > 0) {
+        return Status::KeyError("Invalid flight: can't read multiple times: ",
+                                request.ticket);
+      }
+    }
+    status.num_gets++;
+    ARROW_ASSIGN_OR_RAISE(auto builder, RecordBatchBuilder::Make(
+                                            BuildSchema(), arrow::default_memory_pool()));
+    auto number_builder = builder->GetFieldAs<UInt32Builder>(0);
+    ARROW_RETURN_NOT_OK(number_builder->Append(index));
+    ARROW_ASSIGN_OR_RAISE(auto record_batch, builder->Flush());
+    std::vector<std::shared_ptr<RecordBatch>> record_batches{record_batch};
+    ARROW_ASSIGN_OR_RAISE(auto record_batch_reader,
+                          RecordBatchReader::Make(record_batches));
+    *stream = std::make_unique<RecordBatchStream>(record_batch_reader);
+    return Status::OK();
+  }
+
+  Status DoAction(const ServerCallContext& context, const Action& action,
+                  std::unique_ptr<ResultStream>* result_stream) override {
+    std::vector<Result> results;
+    if (action.type == ActionType::kCancelFlightInfo.type) {
+      ARROW_ASSIGN_OR_RAISE(auto request, CancelFlightInfoRequest::Deserialize(
+                                              std::string_view(*action.body)));
+      auto cancel_status = CancelStatus::kUnspecified;
+      for (const auto& endpoint : request.info->endpoints()) {
+        auto index_result = ExtractIndexFromTicket(endpoint.ticket.ticket);
+        if (index_result.ok()) {
+          auto index = *index_result;
+          if (statuses_[index].cancelled) {
+            cancel_status = CancelStatus::kNotCancellable;
+          } else {
+            statuses_[index].cancelled = true;
+            if (cancel_status == CancelStatus::kUnspecified) {
+              cancel_status = CancelStatus::kCancelled;
+            }
+          }
+        } else {
+          cancel_status = CancelStatus::kNotCancellable;
+        }
+      }
+      CancelFlightInfoResult cancel_result{cancel_status};
+      ARROW_ASSIGN_OR_RAISE(auto serialized, cancel_result.SerializeToString());
+      results.push_back(Result{Buffer::FromString(std::move(serialized))});
+    } else if (action.type == ActionType::kRenewFlightEndpoint.type) {
+      ARROW_ASSIGN_OR_RAISE(auto request, RenewFlightEndpointRequest::Deserialize(
+                                              std::string_view(*action.body)));
+      auto& endpoint = request.endpoint;
+      ARROW_ASSIGN_OR_RAISE(auto index, ExtractIndexFromTicket(endpoint.ticket.ticket));
+      if (statuses_[index].cancelled) {
+        return Status::Invalid("Invalid flight: canceled: ", endpoint.ticket.ticket);
+      }
+      endpoint.ticket.ticket += ": renewed (+ 10 seconds)";
+      endpoint.expiration_time = Timestamp::clock::now() + std::chrono::seconds{10};
+      statuses_[index].expiration_time = endpoint.expiration_time.value();
+      ARROW_ASSIGN_OR_RAISE(auto serialized, endpoint.SerializeToString());
+      results.push_back(Result{Buffer::FromString(std::move(serialized))});
+    } else {
+      return Status::Invalid("Unknown action: ", action.type);
+    }
+    *result_stream = std::make_unique<SimpleResultStream>(std::move(results));
+    return Status::OK();
+  }
+
+  Status ListActions(const ServerCallContext& context,
+                     std::vector<ActionType>* actions) override {
+    *actions = {
+        ActionType::kCancelFlightInfo,
+        ActionType::kRenewFlightEndpoint,
+    };
+    return Status::OK();
+  }
+
+ private:
+  void AddEndpoint(std::vector<FlightEndpoint>& endpoints, std::string ticket,
+                   std::optional<Timestamp> expiration_time) {
+    endpoints.push_back(FlightEndpoint{
+        {std::to_string(statuses_.size()) + ": " + ticket}, {}, expiration_time, ""});
+    statuses_.emplace_back(expiration_time);
+  }
+
+  arrow::Result<uint32_t> ExtractIndexFromTicket(const std::string& ticket) {
+    auto index_string = arrow::internal::SplitString(ticket, ':', 2)[0];
+    uint32_t index;
+    if (!arrow::internal::ParseUnsigned(index_string.data(), index_string.length(),
+                                        &index)) {
+      return Status::KeyError("Invalid flight: no index: ", ticket);
+    }
+    if (index >= statuses_.size()) {
+      return Status::KeyError("Invalid flight: out of index: ", ticket);
+    }
+    return index;
+  }
+
+  std::shared_ptr<Schema> BuildSchema() {
+    return arrow::schema({arrow::field("number", arrow::uint32(), false)});
+  }
+
+  std::vector<EndpointStatus> statuses_;
+};
+
+/// \brief The expiration time scenario - DoGet.
+///
+/// This tests that the client can read data that isn't expired yet
+/// multiple times and can't read data after it's expired.
+class ExpirationTimeDoGetScenario : public Scenario {
+  Status MakeServer(std::unique_ptr<FlightServerBase>* server,
+                    FlightServerOptions* options) override {
+    *server = std::make_unique<ExpirationTimeServer>();
+    return Status::OK();
+  }
+
+  Status MakeClient(FlightClientOptions* options) override { return Status::OK(); }
+
+  Status RunClient(std::unique_ptr<FlightClient> client) override {
+    ARROW_ASSIGN_OR_RAISE(
+        auto info, client->GetFlightInfo(FlightDescriptor::Command("expiration_time")));
+    std::vector<std::shared_ptr<arrow::Table>> tables;
+    for (const auto& endpoint : info->endpoints()) {
+      if (tables.size() == 0) {
+        if (endpoint.expiration_time.has_value()) {
+          return Status::Invalid("endpoints[0] must not have expiration time");
+        }
+      } else {
+        if (!endpoint.expiration_time.has_value()) {
+          return Status::Invalid("endpoints[", tables.size(),
+                                 "] must have expiration time");
+        }
+      }
+      ARROW_ASSIGN_OR_RAISE(auto reader, client->DoGet(endpoint.ticket));
+      ARROW_ASSIGN_OR_RAISE(auto table, reader->ToTable());
+      tables.push_back(table);
+    }
+    ARROW_ASSIGN_OR_RAISE(auto table, ConcatenateTables(tables));
+
+    // Build expected table
+    auto schema = arrow::schema({arrow::field("number", arrow::uint32(), false)});
+    ARROW_ASSIGN_OR_RAISE(auto builder,
+                          RecordBatchBuilder::Make(schema, arrow::default_memory_pool()));
+    auto number_builder = builder->GetFieldAs<UInt32Builder>(0);
+    ARROW_RETURN_NOT_OK(number_builder->Append(0));
+    ARROW_RETURN_NOT_OK(number_builder->Append(1));
+    ARROW_RETURN_NOT_OK(number_builder->Append(2));
+    ARROW_ASSIGN_OR_RAISE(auto expected_record_batch, builder->Flush());
+    std::vector<std::shared_ptr<RecordBatch>> expected_record_batches{
+        expected_record_batch};
+    ARROW_ASSIGN_OR_RAISE(auto expected_table,
+                          Table::FromRecordBatches(expected_record_batches));
+
+    // Check read data
+    if (!table->Equals(*expected_table)) {
+      return Status::Invalid("Read data isn't expected\n", "Expected:\n",
+                             expected_table->ToString(), "Actual:\n", table->ToString());
+    }
+    return Status::OK();
+  }
+};
+
+/// \brief The expiration time scenario - ListActions.
+///
+/// This tests that the client can get pre-defined actions and the
+/// server uses pre-defined ActionTypes for ListActions.
+class ExpirationTimeListActionsScenario : public Scenario {
+  Status MakeServer(std::unique_ptr<FlightServerBase>* server,
+                    FlightServerOptions* options) override {
+    *server = std::make_unique<ExpirationTimeServer>();
+    return Status::OK();
+  }
+
+  Status MakeClient(FlightClientOptions* options) override { return Status::OK(); }
+
+  Status RunClient(std::unique_ptr<FlightClient> client) override {
+    ARROW_ASSIGN_OR_RAISE(auto action_types, client->ListActions());
+    std::vector<std::string> actual_action_types;
+    for (const auto& action_type : action_types) {
+      actual_action_types.push_back(action_type.type);
+    }
+    std::sort(actual_action_types.begin(), actual_action_types.end());
+    std::vector<std::string> expected_action_types = {
+        "CancelFlightInfo",
+        "RenewFlightEndpoint",
+    };
+    if (actual_action_types != expected_action_types) {
+      return Status::Invalid(
+          "Invalid ListActions response: expected=[",
+          arrow::internal::JoinStrings(expected_action_types, ", "), "] actual=[",
+          arrow::internal::JoinStrings(actual_action_types, ", "), "]");
+    }
+    return Status::OK();
+  }
+};
+
+/// \brief The expiration time scenario - CancelFlightInfo.
+///
+/// This tests that the client can cancel a FlightInfo explicitly and
+/// the server returns an error for DoGet against endpoints in the
+/// cancelled FlightInfo.
+class ExpirationTimeCancelFlightInfoScenario : public Scenario {
+  Status MakeServer(std::unique_ptr<FlightServerBase>* server,
+                    FlightServerOptions* options) override {
+    *server = std::make_unique<ExpirationTimeServer>();
+    return Status::OK();
+  }
+
+  Status MakeClient(FlightClientOptions* options) override { return Status::OK(); }
+
+  Status RunClient(std::unique_ptr<FlightClient> client) override {
+    ARROW_ASSIGN_OR_RAISE(auto info,
+                          client->GetFlightInfo(FlightDescriptor::Command("expiration")));
+    CancelFlightInfoRequest request{std::move(info)};
+    ARROW_ASSIGN_OR_RAISE(auto cancel_result, client->CancelFlightInfo(request));
+    if (cancel_result.status != CancelStatus::kCancelled) {
+      return Status::Invalid("CancelFlightInfo must return CANCEL_STATUS_CANCELLED: ",
+                             cancel_result.ToString());
+    }
+    info = std::move(request.info);
+    for (const auto& endpoint : info->endpoints()) {
+      auto reader = client->DoGet(endpoint.ticket);
+      if (reader.ok()) {
+        return Status::Invalid("DoGet after CancelFlightInfo must be failed");
+      }
+    }
+    return Status::OK();
+  }
+};
+
+/// \brief The expiration time scenario - RenewFlightEndpoint.
+///
+/// This tests that the client can renew a FlightEndpoint.
+class ExpirationTimeRenewFlightEndpointScenario : public Scenario {
+  Status MakeServer(std::unique_ptr<FlightServerBase>* server,
+                    FlightServerOptions* options) override {
+    *server = std::make_unique<ExpirationTimeServer>();
+    return Status::OK();
+  }
+
+  Status MakeClient(FlightClientOptions* options) override {return Status::OK(); }
+
+  Status RunClient(std::unique_ptr<FlightClient> client) override {
+    ARROW_ASSIGN_OR_RAISE(auto info,
+                          client->GetFlightInfo(FlightDescriptor::Command("expiration")));
+    // Renew all endpoints that have expiration time
+    for (const auto& endpoint : info->endpoints()) {
+      if (!endpoint.expiration_time.has_value()) {
+        continue;
+      }
+      const auto& expiration_time = endpoint.expiration_time.value();
+      auto request = RenewFlightEndpointRequest{endpoint};
+      ARROW_ASSIGN_OR_RAISE(auto renewed_endpoint, client->RenewFlightEndpoint(request));
+      if (!renewed_endpoint.expiration_time.has_value()) {
+        return Status::Invalid("Renewed endpoint must have expiration time: ",
+                               renewed_endpoint.ToString());
+      }
+      const auto& renewed_expiration_time = renewed_endpoint.expiration_time.value();
+      if (renewed_expiration_time <= expiration_time) {
+        return Status::Invalid("Renewed endpoint must have newer expiration time\n",
+                               "Original:\n", endpoint.ToString(), "Renewed:\n",
+                               renewed_endpoint.ToString());
+      }
+    }
+    return Status::OK();
+  }
+};
+
+
+
+
+// FIXME PHOXME whitespace and after class
+
+/// \brief The server used for testing Session Options.
+///
+/// setSessionOptions has a blacklisted option name and string option value,
+/// both "lol_invalid", which will result in errors attempting to set either.
+class SessionOptionsServer : public sql::FlightSqlServerBase {
+  inline const static std::string invalid_option_name = "lol_invalid";
+  inline const static SessionOptionValue invalid_option_value = "lol_invalid";
+
+  const std::string session_middleware_key;
+  // These will never be threaded so using a plain map and no lock
+  std::map<std::string, SessionOptionValue> session_store_;
+
+ public:
+ // FIXME PHOXME need to handle middleware lookup token wherever
+  SessionOptionsServer(std::string session_middleware_key)
+      : FlightSqlServerBase(),
+        session_middleware_key(std::move(session_middleware_key)) {
+    
+  }
+
+  arrow::Result<SetSessionOptionsResult> SetSessionOptions(
+      const ServerCallContext& context,
+      const SetSessionOptionsRequest& request) override {
+    SetSessionOptionsResult res;
+
+    sql::ServerSessionMiddleware* middleware =
+      (sql::ServerSessionMiddleware*)context.GetMiddleware(session_middleware_key);
+    std::shared_ptr<sql::FlightSession> session = middleware->GetSession();
+
+    for (const auto& [name, value] : request.session_options) {
+      // Blacklisted value name
+      if (name == invalid_option_name) {
+        res.errors.emplace(name, SetSessionOptionsResult::Error{
+                                     SetSessionOptionErrorValue::kInvalidName});
+        continue;
+      }
+      // Blacklisted option value
+      if (value == invalid_option_value) {
+        res.errors.emplace(name, SetSessionOptionsResult::Error{
+                                     SetSessionOptionErrorValue::kInvalidValue});
+        continue;
+      }
+      if (std::holds_alternative<std::monostate>(value)) {
+        session->EraseSessionOption(name);
+        continue;
+      }
+      session->SetSessionOption(name, value);
+    }
+
+    return res;
+  }
+
+  arrow::Result<GetSessionOptionsResult> GetSessionOptions(
+      const ServerCallContext& context,
+      const GetSessionOptionsRequest& request) override {
+    sql::ServerSessionMiddleware* middleware =
+      (sql::ServerSessionMiddleware*)context.GetMiddleware(session_middleware_key);
+    std::shared_ptr<sql::FlightSession> session = middleware->GetSession();
+
+    return GetSessionOptionsResult{session->GetSessionOptions()};
+  }
+
+  arrow::Result<CloseSessionResult> CloseSession(
+      const ServerCallContext& context, const CloseSessionRequest& request) override {
+    sql::ServerSessionMiddleware* middleware =
+      (sql::ServerSessionMiddleware*)context.GetMiddleware(session_middleware_key);
+    // FIXME PHOXME try/catch or are we not using exceptions...?
+    middleware->CloseSession();
+    return CloseSessionResult{ CloseSessionStatus::kClosed };
+  }
+};
+
+/// \brief The Session Options scenario.
+///
+/// This tests Session Options functionality as well as ServerSessionMiddleware.
+class SessionOptionsScenario : public Scenario {
+  inline const static std::string middleware_key = "sessionmiddleware";
+
+  Status MakeServer(std::unique_ptr<FlightServerBase>* server,
+                    FlightServerOptions* options) override {
+    *server = std::make_unique<SessionOptionsServer>(middleware_key);
+
+    auto id_gen_int = std::make_shared<std::atomic_int>(1000);
+    options->middleware.emplace_back(
+        middleware_key,
+        sql::MakeServerSessionMiddlewareFactory(
+            [=]() -> std::string { return std::to_string((*id_gen_int)++); }));
+
+    return Status::OK();
+  }
+
+  Status MakeClient(FlightClientOptions* options) override {
+    return Status::OK();
+  }
+
+  Status RunClient(std::unique_ptr<FlightClient> client) override {
+/*     ARROW_ASSIGN_OR_RAISE(auto info,
+                          client->GetFlightInfo(FlightDescriptor::Command("expiration")));
+    // Renew all endpoints that have expiration time
+    for (const auto& endpoint : info->endpoints()) {
+      if (!endpoint.expiration_time.has_value()) {
+        continue;
+      }
+      const auto& expiration_time = endpoint.expiration_time.value();
+      auto request = RenewFlightEndpointRequest{endpoint};
+      ARROW_ASSIGN_OR_RAISE(auto renewed_endpoint, client->RenewFlightEndpoint(request));
+      if (!renewed_endpoint.expiration_time.has_value()) {
+        return Status::Invalid("Renewed endpoint must have expiration time: ",
+                               renewed_endpoint.ToString());
+      }
+      const auto& renewed_expiration_time = renewed_endpoint.expiration_time.value();
+      if (renewed_expiration_time <= expiration_time) {
+        return Status::Invalid("Renewed endpoint must have newer expiration time\n",
+                               "Original:\n", endpoint.ToString(), "Renewed:\n",
+                               renewed_endpoint.ToString());
+      }
+    }
+ */
+    return Status::OK();
+  }
+};
+
+
+
+
+/// \brief The server used for testing PollFlightInfo().
+class PollFlightInfoServer : public FlightServerBase {
+ public:
+  PollFlightInfoServer() : FlightServerBase() {}
+
+  Status PollFlightInfo(const ServerCallContext& context,
+                        const FlightDescriptor& descriptor,
+                        std::unique_ptr<PollInfo>* result) override {
+    auto schema = arrow::schema({arrow::field("number", arrow::uint32(), false)});
+    std::vector<FlightEndpoint> endpoints = {
+        FlightEndpoint{{"long-running query"}, {}, std::nullopt, ""}};
+    ARROW_ASSIGN_OR_RAISE(
+        auto info, FlightInfo::Make(*schema, descriptor, endpoints, -1, -1, false));
+    if (descriptor == FlightDescriptor::Command("poll")) {
+      *result = std::make_unique<PollInfo>(std::make_unique<FlightInfo>(std::move(info)),
+                                           std::nullopt, 1.0, std::nullopt);
+    } else {
+      *result =
+          std::make_unique<PollInfo>(std::make_unique<FlightInfo>(std::move(info)),
+                                     FlightDescriptor::Command("poll"), 0.1,
+                                     Timestamp::clock::now() + std::chrono::seconds{10});
+    }
+    return Status::OK();
+  }
+};
+
+/// \brief The PollFlightInfo scenario.
+///
+/// This tests that the client can poll a long-running query.
+class PollFlightInfoScenario : public Scenario {
+  Status MakeServer(std::unique_ptr<FlightServerBase>* server,
+                    FlightServerOptions* options) override {
+    *server = std::make_unique<PollFlightInfoServer>();
+    return Status::OK();
+  }
+
+  Status MakeClient(FlightClientOptions* options) override { return Status::OK(); }
+
+  Status RunClient(std::unique_ptr<FlightClient> client) override {
+    ARROW_ASSIGN_OR_RAISE(
+        auto info, client->PollFlightInfo(FlightDescriptor::Command("heavy query")));
+    if (!info->descriptor.has_value()) {
+      return Status::Invalid("Description is missing: ", info->ToString());
+    }
+    if (!info->progress.has_value()) {
+      return Status::Invalid("Progress is missing: ", info->ToString());
+    }
+    if (!(0.0 <= *info->progress && *info->progress <= 1.0)) {
+      return Status::Invalid("Invalid progress: ", info->ToString());
+    }
+    if (!info->expiration_time.has_value()) {
+      return Status::Invalid("Expiration time is missing: ", info->ToString());
+    }
+    ARROW_ASSIGN_OR_RAISE(info, client->PollFlightInfo(*info->descriptor));
+    if (info->descriptor.has_value()) {
+      return Status::Invalid("Retried but not finished yet: ", info->ToString());
+    }
+    if (!info->progress.has_value()) {
+      return Status::Invalid("Progress is missing in finished query: ", info->ToString());
+    }
+    if (fabs(*info->progress - 1.0) > arrow::kDefaultAbsoluteTolerance) {
+      return Status::Invalid("Progress for finished query isn't 1.0: ", info->ToString());
+    }
+    if (info->expiration_time.has_value()) {
+      return Status::Invalid("Expiration time must not be set for finished query: ",
+                             info->ToString());
+    }
+    return Status::OK();
+  }
+};
+
+/// \brief The server used for testing app_metadata in FlightInfo and FlightEndpoint
+class AppMetadataFlightInfoEndpointServer : public FlightServerBase {
+ public:
+  AppMetadataFlightInfoEndpointServer() : FlightServerBase() {}
+
+  Status GetFlightInfo(const ServerCallContext& context, const FlightDescriptor& request,
+                       std::unique_ptr<FlightInfo>* info) override {
+    if (request.type != FlightDescriptor::CMD) {
+      return Status::Invalid("request descriptor should be of type CMD");
+    }
+
+    auto schema = arrow::schema({arrow::field("number", arrow::uint32(), false)});
+    std::vector<FlightEndpoint> endpoints = {
+        FlightEndpoint{{}, {}, std::nullopt, request.cmd}};
+    ARROW_ASSIGN_OR_RAISE(auto result, FlightInfo::Make(*schema, request, endpoints, -1,
+                                                        -1, false, request.cmd));
+    *info = std::make_unique<FlightInfo>(std::move(result));
+    return Status::OK();
+  }
+};
+
+/// \brief The AppMetadataFlightInfoEndpoint scenario.
+///
+/// This tests that the client can receive and use the `app_metadata` field in
+/// the FlightInfo and FlightEndpoint messages.
+///
+/// The server only implements GetFlightInfo and will return a FlightInfo with a non-
+/// empty app_metadata value that should match the app_metadata field in the
+/// included FlightEndpoint. The value should be the same as the cmd bytes passed
+/// in the call to GetFlightInfo by the client.
+class AppMetadataFlightInfoEndpointScenario : public Scenario {
+  Status MakeServer(std::unique_ptr<FlightServerBase>* server,
+                    FlightServerOptions* options) override {
+    *server = std::make_unique<AppMetadataFlightInfoEndpointServer>();
+    return Status::OK();
+  }
+
+  Status MakeClient(FlightClientOptions* options) override { return Status::OK(); }
+
+  Status RunClient(std::unique_ptr<FlightClient> client) override {
+    ARROW_ASSIGN_OR_RAISE(auto info,
+                          client->GetFlightInfo(FlightDescriptor::Command("foobar")));
+    if (info->app_metadata() != "foobar") {
+      return Status::Invalid("app_metadata should have been 'foobar', got: ",
+                             info->app_metadata());
+    }
+    if (info->endpoints().size() != 1) {
+      return Status::Invalid("should have gotten exactly one FlightEndpoint back, got: ",
+                             info->endpoints().size());
+    }
+    if (info->endpoints()[0].app_metadata != "foobar") {
+      return Status::Invalid("FlightEndpoint app_metadata should be 'foobar', got: ",
+                             info->endpoints()[0].app_metadata);
+    }
+    return Status::OK();
+  }
 };
 
 /// \brief Schema to be returned for mocking the statement/prepared statement results.
