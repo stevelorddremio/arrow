@@ -831,11 +831,6 @@ Status FlightSqlServerBase::DoAction(const ServerCallContext& context,
     ARROW_ASSIGN_OR_RAISE(ActionEndTransactionRequest internal_command,
                           ParseActionEndTransactionRequest(any));
     ARROW_RETURN_NOT_OK(EndTransaction(context, internal_command));
-  } else if (action.type == FlightSqlServerBase::kCloseSessionActionType.type) {
-    ARROW_ASSIGN_OR_RAISE(ActionCloseSessionRequest internal_command,
-                          ParseActionCloseSessionRequest(any));
-    ARROW_ASSIGN_OR_RAISE(CloseSessionResult result, CloseSession(context, internal_command));
-    ARROW_ASSIGN_OR_RAISE(Result packed_result, PackActionResult(std::move(result)));
   } else if (action.type == ActionType::kSetSessionOptions.type) {
     std::string_view body(*action.body);
     ARROW_ASSIGN_OR_RAISE(auto request, SetSessionOptionsRequest::Deserialize(body));

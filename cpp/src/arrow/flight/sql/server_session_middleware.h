@@ -28,6 +28,7 @@
 
 #include "arrow/flight/server_middleware.h"
 #include "arrow/flight/sql/types.h"
+#include "arrow/flight/types.h"
 
 namespace arrow {
 namespace flight {
