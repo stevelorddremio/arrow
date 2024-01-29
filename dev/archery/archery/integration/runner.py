@@ -431,6 +431,51 @@ def run_all_tests(with_cpp=True, with_java=True, with_js=True,
             description="Ensure headers are propagated via middleware.",
         ),
         Scenario(
+            "ordered",
+            description="Ensure FlightInfo.ordered is supported.",
+            skip_testers={"JS", "C#", "Rust"},
+        ),
+        Scenario(
+            "expiration_time:do_get",
+            description=("Ensure FlightEndpoint.expiration_time with "
+                         "DoGet is working as expected."),
+            skip_testers={"JS", "C#", "Rust"},
+        ),
+        Scenario(
+            "expiration_time:list_actions",
+            description=("Ensure FlightEndpoint.expiration_time related "
+                         "pre-defined actions is working with ListActions "
+                         "as expected."),
+            skip_testers={"JS", "C#", "Rust"},
+        ),
+        Scenario(
+            "expiration_time:cancel_flight_info",
+            description=("Ensure FlightEndpoint.expiration_time and "
+                         "CancelFlightInfo are working as expected."),
+            skip_testers={"JS", "C#", "Rust"},
+        ),
+        Scenario(
+            "expiration_time:renew_flight_endpoint",
+            description=("Ensure FlightEndpoint.expiration_time and "
+                         "RenewFlightEndpoint are working as expected."),
+            skip_testers={"JS", "C#", "Rust"},
+        ),
+        Scenario(
+            "session_options",
+            description="Ensure Flight SQL Sessions work as expected.",
+            skip_testers={"JS", "C#", "Rust"}
+        ),
+        Scenario(
+            "poll_flight_info",
+            description="Ensure PollFlightInfo is supported.",
+            skip_testers={"JS", "C#", "Rust"}
+        ),
+        Scenario(
+            "app_metadata_flight_info_endpoint",
+            description="Ensure support FlightInfo and Endpoint app_metadata",
+            skip_testers={"JS", "C#", "Rust"}
+        ),
+        Scenario(
             "flight_sql",
             description="Ensure Flight SQL protocol is working as expected.",
             skip={"Rust"}
