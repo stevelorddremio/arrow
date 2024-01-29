@@ -398,21 +398,7 @@ class ARROW_FLIGHT_EXPORT FlightClient {
     return DoExchange({}, descriptor);
   }
 
-  ARROW_DEPRECATED("Deprecated in 8.0.0. Use Result-returning overload instead.")
-  Status DoExchange(const FlightCallOptions& options, const FlightDescriptor& descriptor,
-                    std::unique_ptr<FlightStreamWriter>* writer,
-                    std::unique_ptr<FlightStreamReader>* reader);
-  ARROW_DEPRECATED("Deprecated in 8.0.0. Use Result-returning overload instead.")
-  Status DoExchange(const FlightDescriptor& descriptor,
-                    std::unique_ptr<FlightStreamWriter>* writer,
-                    std::unique_ptr<FlightStreamReader>* reader) {
-    ARROW_ASSIGN_OR_RAISE(auto output, DoExchange({}, descriptor));
-    *writer = std::move(output.writer);
-    *reader = std::move(output.reader);
-    return Status::OK();
-  }
-
-  /// \\brief Set server session option(s) by key/value. Sessions are generally
+  /// \brief Set server session option(s) by name/value. Sessions are generally
   /// persisted via HTTP cookies.
   /// \param[in] options Per-RPC options
   /// \param[in] request The server session options to set
