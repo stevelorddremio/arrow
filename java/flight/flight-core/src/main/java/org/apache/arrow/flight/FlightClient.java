@@ -493,7 +493,9 @@ public class FlightClient implements AutoCloseable {
 
 
   /**
-   * Request the server to extend the lifetime of a query result set.
+   * Set server session option(s) by name/value.
+   *
+   * Sessions are generally persisted via HTTP cookies.
    *
    * @param request The session options to set on the server.
    * @param options Call options.
@@ -523,7 +525,9 @@ public class FlightClient implements AutoCloseable {
   }
 
   /**
-   * Request the server to extend the lifetime of a query result set.
+   * Get the current server session options.
+   *
+   * The session is generally accessed via an HTTP cookie.
    *
    * @param request The (empty) GetSessionOptionsRequest.
    * @param options Call options.
@@ -553,7 +557,9 @@ public class FlightClient implements AutoCloseable {
   }
 
   /**
-   * Request the server to extend the lifetime of a query result set.
+   * Close/invalidate the current server session.
+   *
+   * The session is generally accessed via an HTTP cookie.
    *
    * @param request The (empty) CloseSessionRequest.
    * @param options Call options.
