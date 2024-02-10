@@ -278,7 +278,8 @@ class GrpcServiceHandler final : public FlightService::Service {
 
   // Authenticate the client (if applicable) and construct the call context
   ::grpc::Status CheckAuth(const FlightMethod& method, ServerContext* context,
-                           GrpcServerCallContext& flight_context) {
+                           GrpcServerCallContext& flight_context,
+                           bool skip_headers = false) {
     if (!auth_handler_) {
       const auto auth_context = context->auth_context();
       if (auth_context && auth_context->IsPeerAuthenticated()) {
@@ -307,7 +308,8 @@ class GrpcServiceHandler final : public FlightService::Service {
 
   // Authenticate the client (if applicable) and construct the call context
   ::grpc::Status MakeCallContext(const FlightMethod& method, ServerContext* context,
-                                 GrpcServerCallContext& flight_context) {
+                                 GrpcServerCallContext& flight_context,
+                                 bool skip_headers = false) {
     // Run server middleware
     const CallInfo info{method};
     CallHeaders incoming_headers;
@@ -317,7 +319,6 @@ class GrpcServiceHandler final : public FlightService::Service {
            std::string_view(entry.second.data(), entry.second.length())});
     }
 
-    GrpcAddServerHeaders outgoing_headers(context);
     for (const auto& factory : middleware_) {
       std::shared_ptr<ServerMiddleware> instance;
       Status result = factory.second->StartCall(info, incoming_headers, &instance);
@@ -329,11 +330,23 @@ class GrpcServiceHandler final : public FlightService::Service {
       if (instance != nullptr) {
         flight_context.middleware_.push_back(instance);
         flight_context.middleware_map_.insert({factory.first, instance});
-        instance->SendingHeaders(&outgoing_headers);
       }
     }
 
+    // TODO factor this out after fixing all streaming and non-streaming handlers
+    if (!skip_headers) {
+      addMiddlewareHeaders(context, flight_context);
+    }
+
     return ::grpc::Status::OK;
+  }
+
+  void addMiddlewareHeaders(ServerContext* context,
+                            GrpcServerCallContext& flight_context) {
+    GrpcAddServerHeaders outgoing_headers(context);
+    for (const std::shared_ptr<ServerMiddleware>& instance : flight_context.middleware_) {
+      instance->SendingHeaders(&outgoing_headers);
+    }
   }
 
   ::grpc::Status Handshake(
