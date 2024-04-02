@@ -155,6 +155,8 @@
             <exclude>**/*.iml</exclude>
             <exclude>**/flight.properties</exclude>
             <exclude>**/*.idea/**</exclude>
+            <exclude>**/IntObjectMap.java</exclude>
+            <exclude>**/IntObjectHashMap.java</exclude>
           </excludes>
         </configuration>
       </plugin>
