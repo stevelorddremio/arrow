@@ -408,89 +408,98 @@ abstract class BaseAllocator extends Accountant implements BufferAllocator {
 
   @Override
   public synchronized void close() {
-    /*
-     * Some owners may close more than once because of complex cleanup and shutdown
-     * procedures.
-     */
-    if (isClosed) {
-      return;
-    }
+    try {
+      /*
+       * Some owners may close more than once because of complex cleanup and shutdown
+       * procedures.
+       */
+      if (isClosed) {
+        return;
+      }
 
-    isClosed = true;
+      isClosed = true;
 
-    StringBuilder outstandingChildAllocators = new StringBuilder();
-    if (DEBUG) {
-      synchronized (DEBUG_LOCK) {
-        verifyAllocator();
+      StringBuilder outstandingChildAllocators = new StringBuilder();
+      if (DEBUG) {
+        synchronized (DEBUG_LOCK) {
+          verifyAllocator();
 
-        // are there outstanding child allocators?
+          // are there outstanding child allocators?
+          if (!childAllocators.isEmpty()) {
+            for (final BaseAllocator childAllocator : childAllocators.keySet()) {
+              if (childAllocator.isClosed) {
+                logger.warn(String.format(
+                    "Closed child allocator[%s] on parent allocator[%s]'s child list.\n%s",
+                    childAllocator.name, name, toString()));
+              }
+            }
+
+            throw new IllegalStateException(
+              String.format("Allocator[%s] closed with outstanding child allocators.\n%s", name,
+                toString()));
+          }
+
+          // are there outstanding buffers?
+          final int allocatedCount = childLedgers.size();
+          if (allocatedCount > 0) {
+            throw new IllegalStateException(
+              String.format("Allocator[%s] closed with outstanding buffers allocated (%d).\n%s",
+                name, allocatedCount, toString()));
+          }
+
+          if (reservations.size() != 0) {
+            throw new IllegalStateException(
+              String.format("Allocator[%s] closed with outstanding reservations (%d).\n%s", name,
+                reservations.size(),
+                toString()));
+          }
+
+        }
+      } else {
         if (!childAllocators.isEmpty()) {
-          for (final BaseAllocator childAllocator : childAllocators.keySet()) {
-            if (childAllocator.isClosed) {
-              logger.warn(String.format(
-                  "Closed child allocator[%s] on parent allocator[%s]'s child list.\n%s",
-                  childAllocator.name, name, toString()));
+          outstandingChildAllocators.append("Outstanding child allocators : \n");
+          synchronized (childAllocators) {
+            for (final BaseAllocator childAllocator : childAllocators.keySet()) {
+              outstandingChildAllocators.append(String.format("  %s", childAllocator.toString()));
             }
           }
-
-          throw new IllegalStateException(
-            String.format("Allocator[%s] closed with outstanding child allocators.\n%s", name,
-              toString()));
-        }
-
-        // are there outstanding buffers?
-        final int allocatedCount = childLedgers.size();
-        if (allocatedCount > 0) {
-          throw new IllegalStateException(
-            String.format("Allocator[%s] closed with outstanding buffers allocated (%d).\n%s",
-              name, allocatedCount, toString()));
-        }
-
-        if (reservations.size() != 0) {
-          throw new IllegalStateException(
-            String.format("Allocator[%s] closed with outstanding reservations (%d).\n%s", name,
-              reservations.size(),
-              toString()));
-        }
-
-      }
-    } else {
-      if (!childAllocators.isEmpty()) {
-        outstandingChildAllocators.append("Outstanding child allocators : \n");
-        synchronized (childAllocators) {
-          for (final BaseAllocator childAllocator : childAllocators.keySet()) {
-            outstandingChildAllocators.append(String.format("  %s", childAllocator.toString()));
-          }
         }
       }
-    }
 
-    // Is there unaccounted-for outstanding allocation?
-    final long allocated = getAllocatedMemory();
-    if (allocated > 0) {
-      if (parent != null && reservation > allocated) {
-        parent.releaseBytes(reservation - allocated);
+      // Is there unaccounted-for outstanding allocation?
+      final long allocated = getAllocatedMemory();
+      if (allocated > 0) {
+        if (parent != null && reservation > allocated) {
+          parent.releaseBytes(reservation - allocated);
+        }
+        String msg = String.format("Memory was leaked by query. Memory leaked: (%d)\n%s%s", allocated,
+            outstandingChildAllocators.toString(), toString());
+        logger.error(msg);
+
+        throw new IllegalStateException(msg);
       }
-      String msg = String.format("Memory was leaked by query. Memory leaked: (%d)\n%s%s", allocated,
-          outstandingChildAllocators.toString(), toString());
-      logger.error(msg);
-      throw new IllegalStateException(msg);
+
+      // we need to release our memory to our parent before we tell it we've closed.
+      super.close();
+
+      // Inform our parent allocator that we've closed
+      if (parentAllocator != null) {
+        parentAllocator.childClosed(this);
+      }
+
+      if (DEBUG) {
+        historicalLog.recordEvent("closed");
+        logger.debug(String.format("closed allocator[%s].", name));
+      }
+    } catch (Exception e) {
+      logger.warn(
+              "BufferAllocator.close() of {} got an exception {} - Details {}",
+              this,
+              e,
+              this.toVerboseString());
+    
+      throw e;
     }
-
-    // we need to release our memory to our parent before we tell it we've closed.
-    super.close();
-
-    // Inform our parent allocator that we've closed
-    if (parentAllocator != null) {
-      parentAllocator.childClosed(this);
-    }
-
-    if (DEBUG) {
-      historicalLog.recordEvent("closed");
-      logger.debug(String.format("closed allocator[%s].", name));
-    }
-
-
   }
 
   @Override
