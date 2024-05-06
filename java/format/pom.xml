@@ -28,10 +28,6 @@
       <groupId>com.google.flatbuffers</groupId>
       <artifactId>flatbuffers-java</artifactId>
     </dependency>
-    <dependency>
-      <groupId>org.apache.arrow</groupId>
-      <artifactId>arrow-format</artifactId>
-    </dependency>
   </dependencies>
 
  <build>
